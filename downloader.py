@@ -14,15 +14,17 @@ from rich.progress import (
     TimeRemainingColumn,
     TransferSpeedColumn,
 )
+from helper import Helper as hlp
 
 console = Console()
+helper = hlp()
 
 class SankakuDL:
     def __init__(self, mbSize=100):
         self.active_tasks = {}
         self.psize = mbSize
 
-    async def download(self, url: str, path: str | Path, timeout: aiohttp.ClientTimeout):
+    async def download(self, url: str, path: str | Path, timeout: aiohttp.ClientTimeout) -> tuple[bool, Path | None]:
         headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0'}
         self.timeout = timeout
 
@@ -32,11 +34,7 @@ class SankakuDL:
         file = Path(self._get_filename_from_url(url))
 
         if path:
-            if isinstance(path, str):
-                path = Path(path).resolve()
-            else:
-                path = path.resolve()
-            file = path / file
+            file = await helper.resolve_path(path) / file.name
             
         async with aiohttp.ClientSession() as s:
             async with s.head(url, headers=headers, timeout=self.timeout) as resp:
@@ -44,7 +42,7 @@ class SankakuDL:
 
         if not size:
             console.print('[bold red]Failed to get file size[/bold red]')
-            return False
+            return (False, None)
         
         console.print(f'[green]File size: {size / 1024 / 1024:.2f} MB[/green]')
         console.print(f'[dim]Target: {file}[/dim]')
@@ -65,10 +63,11 @@ class SankakuDL:
                 file_size = file.stat().st_size if file.exists() else 0
                 if file_size == size:
                     console.print('[yellow]File already exists, skipping[/yellow]')
-                    return True
+                    return (True, file)
+                Path.mkdir(file.parent, exist_ok=True, parents=True)
                 task_id = progress.add_task(f'[cyan]Downloading {file.name}', total=size - file_size)
                 tasks.append(asyncio.create_task(
-                                self._download_seg(url, file_size, size, headers, file, task_id, progress)
+                                self._download_seg(url, file_size, size, headers, file, task_id, progress, False)
                             ))
                 
             else:
@@ -77,7 +76,7 @@ class SankakuDL:
                 seg_size = size // seg_count
 
                 tfile = file / file.name
-                Path.mkdir(tfile.parent, exist_ok=True)
+                Path.mkdir(tfile.parent, exist_ok=True, parents=True)
 
                 console.print(f'[cyan]Splitting into {seg_count} segments[/cyan]')
                 
@@ -101,36 +100,36 @@ class SankakuDL:
                                     ))
             if not tasks:
                 console.print(f'[bold red]No tasks[/bold red]')
-                return False
+                return (False, None)
             
             res = await asyncio.gather(*tasks)
             console.print(f'[dim]Results: {res}[/dim]')
             
-            if all(res):
+            if all(success for success, _ in res):
                 console.print(f'[bold green]{"All segments" if seg else "File"} downloaded{", merging..." if seg else "."}[/bold green]')
                 if seg:
                     await self._connect_segs(file, progress)
                     console.print(f'[bold green]Download complete: {file.name}[/bold green]')
-                return True
+                return (True, file)
             else:
                 console.print('[bold red]Download failed[/bold red]')
-        return False
+        return (False, None)
                 
     def _get_filename_from_url(self, url: str) -> str:
         parsed = urlparse(url)
         return Path(parsed.path).name
     
-    async def _download_seg(self, url: str, start: int, end: int, headers: dict, name: Path, task_id: TaskID, progress: Progress, _max_retries: int = 5):
+    async def _download_seg(self, url: str, start: int, end: int, headers: dict, name: Path, task_id: TaskID, progress: Progress, seg = True, _max_retries: int = 5):
         headers = headers.copy()
         headers['Range'] = f'bytes={start}-{end}'
-        expected_size = end - start + 1
+        expected_size = end - start + (1 if seg else 0)
 
         for attempt in range(1, _max_retries+1):
             try:
                 if name.exists() and not name.is_dir() and name.stat().st_size == expected_size:
                     if task_id is not None:
                         progress.update(task_id, completed=expected_size)
-                    return True
+                    return (True, name)
                 
                 async with aiohttp.ClientSession() as s:
                     async with s.get(url, headers=headers, timeout=self.timeout) as resp:
@@ -145,25 +144,25 @@ class SankakuDL:
                                             progress.update(task_id, advance=len(chunk), refresh=True)
                                     
                                     if downloaded == expected_size:
-                                        return True
+                                        return (True, name)
                                     else:
-                                        console.print(f'[yellow]Size mismatch for {name}[/yellow]')
-                                        return False
+                                        console.print(f'[yellow]Size mismatch for {name} with {resp.status}[/yellow]')
+                                        console.print(f'[dim]DEBUG: expected={expected_size}, downloaded={downloaded}, start={start}, end={end}, file_exists={name.exists()}, file_size={name.stat().st_size if name.exists() else 0}[/dim]')
+                                        return (False, name)
                             case (404, 403, 410):
                                 console.print(f'[red]Fatal error {resp.status} for {name}[/red]')
-                                return False
+                                return (False, name)
             except asyncio.TimeoutError:
                 console.print(f'[yellow]Timeout on attempt {attempt}/{_max_retries}[/yellow]')
             except aiohttp.ClientError as e:
                 console.print(f'[yellow]Client error: {e}[/yellow]')
             except Exception as e:
                 console.print(f'[red]Unexpected error: {e}[/red]')
-                return False
+                return (False, name)
             
-                
     async def _connect_segs(self, file: Path, progress: Progress):
         if file.is_file():
-            return True
+            return (True, file)
         
         files = sorted([f for f in file.iterdir()], key=lambda x: int(x.suffix[1:]))
 
