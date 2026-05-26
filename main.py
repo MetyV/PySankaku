@@ -195,6 +195,9 @@ class Sankaku:
                         of = []
                         
                         for status, file_path, page_index in results:
+                            if page_index is None:
+                                console.print(f'[red]Missing page index for file {file_path}. ABORTING!!![/red]')
+                                return False
                             if status and file_path and Path(file_path).exists():
                                 file_path = Path(file_path)
                                 ext = file_path.suffix
