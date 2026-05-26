@@ -198,6 +198,9 @@ class Sankaku:
                             if page_index is None:
                                 console.print(f'[red]Missing page index for file {file_path}. ABORTING!!![/red]')
                                 return False
+                            if not status or file_path is None:  # 'None' file_path?!! SKIP SKIP SKIP!!!
+                                console.print(f'[red]Failed to download page {page_index} (file: {file_path})[/red]')
+                                continue
                             if status and file_path and Path(file_path).exists():
                                 file_path = Path(file_path)
                                 ext = file_path.suffix
