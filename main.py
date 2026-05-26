@@ -180,22 +180,42 @@ class Sankaku:
 
                     tasks = []
                     
-                    for post in selected_posts:
-                        furl = await self._get_fu(id=post)
+                    for i, post_id in enumerate(selected_posts, start=1):
+                        furl = await self._get_fu(id=post_id)
                         if furl:
-                            tasks.append(SDL(mbSize).download(furl, path, self.timeout))
+                            tasks.append(SDL(mbSize).download(furl, path, self.timeout, i))
 
                     results = await asyncio.gather(*tasks)
                     
                     if zip:
-                        zip_path = path / f'{id}.zip'
-                        with zipfile.ZipFile(zip_path, 'w') as zf:
-                            for _, result in results:
-                                if result:
-                                    console.print(f'[dim]Adding {result} to zip...[/dim]')
-                                    zf.write(result, arcname=Path(result).name)
-                                    Path(result).unlink()
-                        console.print(f'[green]Book downloaded and zipped to {zip_path}[/green]')
+                        zip_path = path / 'temp' / f'{id}.zip'
+                        zpc = zip_path.parent
+                        zpc.mkdir(exist_ok=True, parents=True)
+                        
+                        of = []
+                        
+                        for status, file_path, page_index in results:
+                            if status and file_path and Path(file_path).exists():
+                                file_path = Path(file_path)
+                                ext = file_path.suffix
+                                new_path = file_path.with_name(f"{page_index:03d}{ext}")
+                                file_path.move(new_path)
+                                of.append(new_path)
+
+                        of.sort()
+
+                        with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_STORED) as zf:
+                            for file in of:
+                                if file.is_file():
+                                    console.print(f'[dim]Adding {file.name} to archive...[/dim]')
+                                    zf.write(file, arcname=file.name)
+                                    file.unlink()
+                                    
+                        final_zip_path = path / f'{id}.zip'
+                        zip_path.move(final_zip_path)
+                        zpc.rmdir()
+                        
+                        console.print(f'[green]Book downloaded and zipped to {final_zip_path}[/green]')
                     else:
                         console.print(f'[green]Book downloaded to {path}[/green]')
                     return True
@@ -208,13 +228,13 @@ class Sankaku:
 if __name__ == '__main__':
     async def main():
         sankaku = Sankaku()
-        asd = Path('/mnt/fa/.tmp/')
-        token = await sankaku.Login('login', 'password')
+        #asd = Path('/mnt/fa/.tmp/')
+        #token = await sankaku.Login('login', 'password')
         #await sankaku.DlBook('/mnt/fa/.tmp/book/sanLike/', 'https://www.sankakucomplex.com/books/1QaEoLLbR9L', 3, True, token=token) # OK
         #await sankaku.DlPost(asd / 'post' / 'sanLike/', url='https://www.sankakucomplex.com/posts/1QaE3ZGG5R9') # OK
         #await sankaku.DlBook('/mnt/fa/.tmp/book/directID/', id='78MYvGDoaew', zip=True, token=token) # OK
         #await sankaku.DlPost('/mnt/fa/.tmp/post/directID/', id='1QaE3ZGG5R9') # OK
-        #await sankaku.DlBook(asd / 'book' / 'partial', url='https://www.sankakucomplex.com/books/GelR0z5kagK', pages=[1,3], zip=False) # OK
+        #await sankaku.DlBook(asd / 'book' / 'partial', url='https://www.sankakucomplex.com/books/GelR0z5kagK', pages=[1,3], zip=True) # OK
         #await sankaku.DlPost('/mnt/fa/.tmp/post/directURL/', url='https://sankakuapi.com/posts/1QaE3ZGG5R9/fu?lang=en') # OK
         #await sankaku.DlBook('/mnt/fa/.tmp/book/directURL/', url='https://sankakuapi.com/pools/GelR0z5kagK?lang=en&exceptStatuses[]=deleted', pages=[2], zip=False) # OK
         #await sankaku.DlPost(asd / 'post' / 'segmented', url='https://www.sankakucomplex.com/posts/1QaE3ZGG5R9', mbSize=0) # OK
