@@ -60,11 +60,17 @@ class Sankaku:
     
         return await self.helper.getJson(url, headers, 'GET', None, timeout, retries)
     
+    async def _headers(self, token: str | None = None) -> dict:
+        headers = self.headers.copy()
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+
+        return headers
+
     async def _fetch_data(self, url: str, token: str, type: str) -> tuple[dict, str] | None:
         console.print(f'[dim]Fetching {type} data...[/dim]')
 
-        headers = self.headers.copy()
-        headers['Authorization'] = f'Bearer {token}'
+        headers = await self._headers(token)
 
         post_id = await self._getPostID(url)
         if not post_id:
@@ -101,9 +107,7 @@ class Sankaku:
         
         id = id if id else await self._getPostID(url)
 
-        headers = self.headers.copy()
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
+        headers = await self._headers(token)
         
         url = f'https://sankakuapi.com/posts/{id}/fu'
         
@@ -144,9 +148,7 @@ class Sankaku:
 
         path = await self.helper.resolve_path(path)
 
-        headers = self.headers.copy()
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
+        headers = await self._headers(token)
 
         if not id:
             return err()
@@ -230,12 +232,110 @@ class Sankaku:
     
     async def close_session(self):
         await self.helper._session_close()
+
+    async def votePost(self, url: str, rating: int | list[int], token: str | list[str], id: str | None = None) -> list:
+        id = id if id else await self._getPostID(url)
+        
+        apiurl = f'https://sankakuapi.com/posts/{id}/vote'
+        token = [token] if isinstance(token, str) else token
+        rating = [rating] if isinstance(rating, int) else rating
+        if len(rating) < len(token):
+            rating = (rating * (len(token) // len(rating) + 1))[:len(token)]
+        r = [
+            ({'score': rating[i]}, await self._headers(token[i]))
+            for i in range(len(token))
+        ]
+        tasks = [self.helper.request(apiurl, header, 'PUT', js) for js, header in r]
+        res = await asyncio.gather(*tasks)
+        await self.helper._session_close()
+        return res
+    
+    async def regAcc(self, login: str | None = None, password: str | None = None, mail: str | None = None) -> bool:
+        url = 'https://login.sankakucomplex.com/users'
+        json={
+            "entry_query":"Y2xpZW50X2lkPXNhbmtha3Utd2ViLWFwcCZsYW5nPWVuJnJlZGlyZWN0X3VyaT1odHRwcyUzQSUyRiUyRnNhbmtha3UuYXBwJTJGc3NvJTJGY2FsbGJhY2smcmVzcG9uc2VfdHlwZT1jb2RlJnJvdXRlPXJlZ2lzdHJhdGlvbiZzY29wZT1vcGVuaWQmc3RhdGU9cmV0dXJuX3VyaSUzRGh0dHBzJTNBJTJGJTJGc2Fua2FrdS5hcHAlMkZhdXRoJnRoZW1lPXdoaXRlJnRvX3BheW1lbnRzPWZhbHNl",
+            "user":{
+                "name":login,
+                "password":password,
+                "password_confirmation":password,
+                "email": mail},
+            "lang":"en"
+            }
+
+        headers = await self._headers()
+
+        resp = await self.helper.request(url, headers, 'POST', json)
+        if resp is not None and resp[1] == 200:
+            console.print(f'[green]Reg success: {mail}:{password}[/green]')
+            await self.helper._session_close()
+            return True
+        await self.helper._session_close()
+        console.print(f'[red]Reg fail: {mail}:{password}[/red]')
+        return False
+
+    async def resendVerification(self, token: str):
+        url = 'https://sankakuapi.com/auth/request-validation'
+        
+        headers = await self._headers(token)
+
+        resp = await self.helper.request(url, headers, 'POST')
+        if resp:
+            console.print(f'[green]Verification resended[/green]')
+            await self.helper._session_close()
+            return True
+        await self.helper._session_close()
+        console.print(f'[red]Verification resend fail[/red]')
+        return False
+
+    async def contentFilter(self, token: str | None = None, enable: bool = True, id: str | None = None, login: str | None = None, password: str | None = None) -> bool:
+        def err():
+            console.print('[red]Content filter switch error[/red]')
+            return False
+        
+        token = token or await self.Login(login, password) if login and password else None
+        if not token:
+            return err()
+        
+        id = id or await self.getAccId(token)
+        if not id:
+            return err()
+            
+
+        url=f'https://sankakuapi.com/users/{id}'
+        json = {
+            "user":{
+                "filter_content":enable
+                }
+            }
+
+        headers = await self._headers(token)
+
+        resp = await self.helper.request(url, headers, 'PUT', json)
+        if resp and resp[1] == 200:
+            console.print('[green]Content filter switched[/green]')
+            await self.helper._session_close()
+            return True
+        await self.helper._session_close()
+        return False
+
+    async def getAccId(self, token: str):
+        url = 'https://sankakuapi.com/users/me'
+        headers = await self._headers(token)
+
+        resp = await self.helper.getJson(url, headers)
+        if resp:
+            res = resp.get('user', {}).get('id')
+            await self.helper._session_close()
+            return res
+        return None
     
 if __name__ == '__main__':
     async def main():
         sankaku = Sankaku()
         #asd = Path('/mnt/fa/.tmp/')
-        #token = await sankaku.Login('login', 'password')
+        #token = await sankaku.Login('login', 'pass.')
+        #if token is None:
+        #    return
         #await sankaku.DlBook('/mnt/fa/.tmp/book/sanLike/', 'https://www.sankakucomplex.com/books/1QaEoLLbR9L', 3, True, token=token) # OK
         #await sankaku.DlPost(asd / 'post' / 'sanLike/', url='https://www.sankakucomplex.com/posts/1QaE3ZGG5R9') # OK
         #await sankaku.DlBook('/mnt/fa/.tmp/book/directID/', id='78MYvGDoaew', zip=True, token=token) # OK
@@ -245,5 +345,7 @@ if __name__ == '__main__':
         #await sankaku.DlBook('/mnt/fa/.tmp/book/directURL/', url='https://sankakuapi.com/pools/GelR0z5kagK?lang=en&exceptStatuses[]=deleted', pages=[2], zip=False) # OK
         #await sankaku.DlPost(asd / 'post' / 'segmented', url='https://www.sankakucomplex.com/posts/1QaE3ZGG5R9', mbSize=0) # OK
         #await sankaku.DlBook('/mnt/fa/.tmp/book/segmented/', url='https://sankakuapi.com/pools/GelR0z5kagK?lang=en&exceptStatuses[]=deleted', pages=[2], zip=False, mbSize=0) # OK
+
+        #await sankaku.votePost('https://www.sankakucomplex.com/books/GelR0z5kagK', 1, token) # OK
 
     asyncio.run(main())

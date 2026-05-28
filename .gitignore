@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 .env
 *.json
+
+# ya znayu chto ty zdes', but you won't find anything ( ͡° ͜ʖ ͡°)
+AutoBotRegistrator.py
+# eto molotok, kotoryi raz'yobyvaet pidor's posts
+BotsHumiliatingPosts.py
