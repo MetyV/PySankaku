@@ -5,6 +5,7 @@ from downloader import SankakuDL as SDL
 import asyncio
 from rich.console import Console
 from helper import Helper as hlp
+from helper import accounts
 
 console = Console()
 
@@ -233,7 +234,7 @@ class Sankaku:
     async def close_session(self):
         await self.helper._session_close()
 
-    async def votePost(self, url: str, rating: int | list[int], token: str | list[str], id: str | None = None) -> list:
+    async def votePost(self, url: str, rating: int | list[int], token: str | list[str], id: str | None = None):
         id = id if id else await self._getPostID(url)
         
         apiurl = f'https://sankakuapi.com/posts/{id}/vote'
@@ -246,9 +247,8 @@ class Sankaku:
             for i in range(len(token))
         ]
         tasks = [self.helper.request(apiurl, header, 'PUT', js) for js, header in r]
-        res = await asyncio.gather(*tasks)
-        await self.helper._session_close()
-        return res
+        await asyncio.gather(*tasks)
+        console.print(f'[green]Voted on post {id} with ratings {rating}[/green]')
     
     async def regAcc(self, login: str | None = None, password: str | None = None, mail: str | None = None) -> bool:
         url = 'https://login.sankakucomplex.com/users'
@@ -267,9 +267,7 @@ class Sankaku:
         resp = await self.helper.request(url, headers, 'POST', json)
         if resp is not None and resp[1] == 200:
             console.print(f'[green]Reg success: {mail}:{password}[/green]')
-            await self.helper._session_close()
             return True
-        await self.helper._session_close()
         console.print(f'[red]Reg fail: {mail}:{password}[/red]')
         return False
 
@@ -281,25 +279,22 @@ class Sankaku:
         resp = await self.helper.request(url, headers, 'POST')
         if resp:
             console.print(f'[green]Verification resended[/green]')
-            await self.helper._session_close()
             return True
-        await self.helper._session_close()
         console.print(f'[red]Verification resend fail[/red]')
         return False
 
-    async def contentFilter(self, token: str | None = None, enable: bool = True, id: str | None = None, login: str | None = None, password: str | None = None) -> bool:
-        def err():
-            console.print('[red]Content filter switch error[/red]')
+    async def contentFilter(self, token: str | None = None, enable: bool = False, id: str | None = None, login: str | None = None, password: str | None = None) -> bool:
+        def err(text):
+            console.print(f'[red]Content filter switch error: {text}[/red]')
             return False
         
-        token = token or await self.Login(login, password) if login and password else None
-        if not token:
-            return err()
+        token = token if token else await self.Login(login, password) if login and password else None
+        if token is None:
+            return err('token')
         
         id = id or await self.getAccId(token)
-        if not id:
-            return err()
-            
+        if id is None:
+            return err('id')
 
         url=f'https://sankakuapi.com/users/{id}'
         json = {
@@ -313,9 +308,7 @@ class Sankaku:
         resp = await self.helper.request(url, headers, 'PUT', json)
         if resp and resp[1] == 200:
             console.print('[green]Content filter switched[/green]')
-            await self.helper._session_close()
             return True
-        await self.helper._session_close()
         return False
 
     async def getAccId(self, token: str):
@@ -325,10 +318,26 @@ class Sankaku:
         resp = await self.helper.getJson(url, headers)
         if resp:
             res = resp.get('user', {}).get('id')
-            await self.helper._session_close()
+            console.print(f'[green]Account ID: {res}[/green]')
             return res
         return None
     
+    async def favorPost(self, url: str | None = None, token: str | None = None, fav: bool = True, id: str | None = None, timeout: int = 30, retries: int = 1) -> bool:
+        id = id if id else await self._getPostID(url) if url else None
+        if not id:
+            console.print('[red]Failed to favor[/red]')
+            return False
+        
+        url = f'https://sankakuapi.com/posts/{id}/favorite'
+        headers = await self._headers(token)
+
+        r = await self.helper.request(url, headers, 'POST' if fav else 'DELETE', {'post_id': id}, timeout=timeout, retries=retries)
+        if r and r[1] == 200:
+            console.print(f'[green]Post {id} {"favored" if fav else "unfavored"}[/green]')
+            return True
+        console.print(f'[red]Failed to favor post {id}[/red]')
+        return False
+
 if __name__ == '__main__':
     async def main():
         sankaku = Sankaku()
@@ -346,6 +355,8 @@ if __name__ == '__main__':
         #await sankaku.DlPost(asd / 'post' / 'segmented', url='https://www.sankakucomplex.com/posts/1QaE3ZGG5R9', mbSize=0) # OK
         #await sankaku.DlBook('/mnt/fa/.tmp/book/segmented/', url='https://sankakuapi.com/pools/GelR0z5kagK?lang=en&exceptStatuses[]=deleted', pages=[2], zip=False, mbSize=0) # OK
 
-        #await sankaku.votePost('https://www.sankakucomplex.com/books/GelR0z5kagK', 1, token) # OK
+        
+
+        await sankaku.helper._session_close()
 
     asyncio.run(main())
