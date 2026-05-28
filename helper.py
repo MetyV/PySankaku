@@ -1,12 +1,24 @@
 from pathlib import Path
 from urllib.parse import urlparse
-
 import aiohttp
+from rich.console import Console
+
+console = Console()
 
 
 class Helper:
-    def __init__(self, timeout: int = 30):
-        self.timeout = aiohttp.ClientTimeout(total=timeout)
+    session: aiohttp.ClientSession | None
+    def __init__(self):
+        self.session = None
+
+    async def _session_close(self):
+        if self.session:
+            await self.session.close()
+        
+    async def _session_init(self):
+        if self.session:
+            await self._session_close()
+        self.session = aiohttp.ClientSession()
 
     async def resolve_path(self, path: Path | str) -> Path:
         return Path(path).resolve() if isinstance(path, str) else path.resolve()
@@ -14,3 +26,65 @@ class Helper:
     def get_filename_from_url(self, url: str) -> str:
         parsed = urlparse(url)
         return Path(parsed.path).name
+    
+    async def request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, timeout: int = 30, retries: int = 1) -> tuple[aiohttp.ClientResponse, int] | None:
+        ttimeout = aiohttp.ClientTimeout(total=timeout)
+        st = None
+        def printErr(text):
+            console.print(f'[red]{text}: {st}[/red]')
+            return None
+        
+        if self.session is None:
+            await self._session_init()
+
+        assert self.session is not None
+
+        for i in range(1, retries+1):
+            try:
+                async with self.session.request(method, url, headers=headers, json=json, timeout=ttimeout, allow_redirects=True) as r:
+                    st = r.status
+                    newUrl = r.url
+                    match st:
+                        case 404: return printErr(f'No page')
+                        case (301, 302, 303, 307, 308):
+                            console.print(f'[yellow]Redirect: {st}[/yellow]')
+                            if not isinstance(newUrl, str):
+                                return printErr('No redirect url extracted')
+                            return await self.request(newUrl, headers, method, json, timeout, retries)
+                        case 400:return printErr('Bad request(invalid request)')
+                        case 401:return printErr('Unauthorized(token?)')
+                        case 403:return printErr('Forbidden(token?)')
+                        case 405:return printErr(f'Wrong method({method})')
+                        case 409:return printErr('Conflict')
+                        case 410:return printErr('RIP resource')
+                        case 415:return printErr('Wrong data type')
+                        case 422:return printErr('Unprocessable')
+                        case 429:return printErr('Riched RP(D/M)')
+                        case 500:return printErr('Internal error')
+                        case 502:return printErr('Bad gateway')
+                        case 503:return printErr('Service unavailable')
+                        case 504:return printErr('Timeout')
+                    return (r, st)
+            except Exception as e:
+                console.print(f'[yellow]Request error: {i+1} try[/yellow]' if i<retries else f'[red]Request error: {e}[/red]')
+                if i>=retries+1:
+                    return None
+                
+    async def getJson(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, timeout: int = 30, retries: int = 1) -> dict | None:
+        def printErr():
+            console.print(f'[red]Json data fetch failed[/red]')
+            return None
+        
+        req = await self.request(url, headers, method, json, timeout, retries)
+
+        if req is None:
+            return printErr()
+        
+        js = await req[0].json()
+        
+        if js:
+            console.print('[green]Json data fetched[/green]')
+            return js
+        
+        return printErr()
+    

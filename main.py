@@ -7,57 +7,48 @@ from rich.console import Console
 from helper import Helper as hlp
 
 console = Console()
-helper = hlp()
 
 class Sankaku:
-    def __init__(self, timeout = 30) -> None:
+    def __init__(self) -> None:
         self.headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0'}
-        self.timeout = aiohttp.ClientTimeout(total=timeout)
+        self.helper = hlp()
 
-    async def Login(self, login: str, password: str) -> str:
+    async def Login(self, login: str, password: str) -> str | None:
+        def err():
+            console.print(f'[red]Login failed[/red]')
+            return None
+        
         console.print('[bold cyan]Logging in...[/bold cyan]')
-        async with aiohttp.ClientSession() as s:
-            async with s.post('https://login.sankakucomplex.com/auth/token', json={
+        firstData = await self.helper.getJson('https://login.sankakucomplex.com/auth/token', self.headers, 'POST', {
                 "login":login,
                 "password":password,
-                "mfaParams":{"login":login}},
-                headers=self.headers,
-                timeout=self.timeout) as resp:
-                
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data:
-                        token = data.get('access_token')
-                        async with s.post('https://sankakuapi.com/sso/token-exchange',
-                                        json={
-                                            "access_token":token,
-                                            "client_id":"sankaku-web-app",
-                                            "url":"https://www.sankakucomplex.com"
-                                            }) as resp:
-                            if resp.status == 200:
-                                data = await resp.json()
-                                if data:
-                                    token = data.get('access_token')
-                                    console.print(f'[green]Login successful: {token[:3]}...{token[-3:]}[/green]')
-                                    return token
-                elif resp.status == 403:
-                    console.print(f'[red]Login failed: HTTP {resp.status}(maybe wrong login or password)[/red]')
-        console.print('[red]Login failed[/red]')
-        return ''
+                "mfaParams":{"login":login}
+                })
+        
+        if firstData is None:
+            return err()
+        
+        ttoken = firstData.get('access_token')
+        if not isinstance(ttoken, str):
+            return err()
+        
+        secData = await self.helper.getJson('https://sankakuapi.com/sso/token-exchange', self.headers, 'POST', {
+                                        "access_token":ttoken,
+                                        "client_id":"sankaku-web-app",
+                                        "url":"https://www.sankakucomplex.com"
+                                        })
+            
+        if secData is None:
+            return err()
+        
+        token = secData.get('access_token')
+        if not isinstance(token, str):
+            return err()
+        
+        console.print(f'[green]Login successful: {token[:3]}...{token[-3:]}[/green]')
+        return token
     
-    async def _api_request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None) -> dict:
-        async with aiohttp.ClientSession() as s:
-            async with s.request(method, url, headers=headers, json=json, timeout=self.timeout) as resp:
-                if resp.status == 200:
-                    console.print('[green]API data fetched[/green]')
-                    return await resp.json()
-                if resp.status == 401:
-                    console.print('[red]Token expired or invalid[/red]')
-                    return {}
-                console.print(f'[yellow]API data fetch failed: HTTP {resp.status}[/yellow]')
-        return {}
-    
-    async def PostData(self, url: str, token: str) -> dict:
+    async def PostData(self, url: str, token: str, timeout: int = 30, retries: int = 30) -> dict | None:
         tfetch = await self._fetch_data(url, token, 'post')
 
         if not tfetch:
@@ -67,7 +58,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/v2/posts?lang=en&page=1&limit=1&default_threshold=2&tags=id_range:{post_id}'
     
-        return await self._api_request(url, headers, 'GET', None)
+        return await self.helper.getJson(url, headers, 'GET', None, timeout, retries)
     
     async def _fetch_data(self, url: str, token: str, type: str) -> tuple[dict, str] | None:
         console.print(f'[dim]Fetching {type} data...[/dim]')
@@ -82,7 +73,7 @@ class Sankaku:
         
         return headers, post_id
     
-    async def BookData(self, url: str, token: str) -> dict:
+    async def BookData(self, url: str, token: str, timeout: int = 30, retries: int = 30) -> dict | None:
         tfetch = await self._fetch_data(url, token, 'book')
 
         if not tfetch:
@@ -92,144 +83,153 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/pools/{post_id}'
 
-        return await self._api_request(url, headers, 'GET', None)
+        return await self.helper.getJson(url, headers, 'GET', None, timeout, retries)
     
-    async def _getPostID(self, url: str) -> str:
+    async def _getPostID(self, url: str) -> str | None:
         import re
     
         match = re.search(r'(?:id_range:|/posts/|/pools/|/books/)([A-Za-z0-9]+)', url)
-        return match.group(1) if match else ''
+        if not match:
+            console.print('[red]Failed to get post id[/red]')
+            return None
+        return match.group(1)
     
-    async def _get_fu(self, url: str = '', id: str | None = None, token: str | None = None) -> str:
+    async def _get_fu(self, url: str = '', id: str | None = None, token: str | None = None, timeout: int = 30, retries: int = 1) -> str | None:
+        def err():
+            console.print('[red]Failed to get file URL[/red]')
+            return None
+        
         id = id if id else await self._getPostID(url)
 
         headers = self.headers.copy()
         if token:
             headers['Authorization'] = f'Bearer {token}'
-
-        if not id:
-            console.print('[red]Failed to extract post ID[/red]')
-            return ''
+        
         url = f'https://sankakuapi.com/posts/{id}/fu'
-        async with aiohttp.ClientSession() as s:
-            async with s.get(url, headers=headers, timeout=self.timeout) as resp:
-                if resp.status == 200:
-                    js: dict = await resp.json()
-                    if not js.get('success'):
-                        console.print('[red]API returned success=false[/red]')
-                        return ''
-                    data = js.get('data', {})
-                    if not data:
-                        console.print('[red]No data in response[/red]')
-                    furl = data.get('file_url') or data.get('fallback_url') or data.get('sample_url')
-                    if not furl:
-                        console.print('[red]No file URL found in response[/red]')
-                    return furl
-                elif resp.status == 403:
-                    console.print(f'[red]Access denied: HTTP {resp.status} (maybe token issue)[/red]')
-                else:
-                    console.print(f'[yellow]Failed to get file URL: HTTP {resp.status}[/yellow]')
-        return ''
+        
+        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries)
+        if data is None:
+            return err()
+        furl = data.get('file_url') or data.get('fallback_url') or data.get('sample_url')
+        if not furl:
+            return err()
+        return furl
     
-    async def DlPost(self, path: Path | str, url: str = '', mbSize=100, id: str | None = None, token: str | None = None) -> bool:
-        furl = await self._get_fu(url=url, id=id, token=token)
-        if not furl:            
-            console.print('[red]Failed to get file URL[/red]')
+    async def DlPost(self, path: Path | str, url: str = '', mbSize=100, id: str | None = None, token: str | None = None, timeout: int = 30, retries: int = 1) -> bool:
+        furl = await self._get_fu(url=url, id=id, token=token, timeout=timeout, retries=retries)
+        if furl is None:            
+            console.print('[red]Failed to dl[/red]')
             return False
 
-        return (await SDL(mbSize).download(furl, path, self.timeout))[0]
+        path = await self.helper.resolve_path(path)
+
+        return (await SDL(mbSize).download(furl, path, timeout, retries = retries))[0]
     
-    async def DlBook(self, path: Path | str, url: str = '', pages: int | list[int] | None = None, zip: bool | None = False, id: str | None = None, mbSize=100, token: str | None = None) -> bool:
+    async def DlBook(self,
+                    path: Path | str,
+                    url: str = '',
+                    pages: int | list[int] | None = None,
+                    zip: bool | None = False,
+                    id: str | None = None,
+                    mbSize=100,
+                    token: str | None = None,
+                    timeout: int = 30,
+                    retries: int = 1) -> bool:
+        
+        def err():
+            console.print('[red]Failed to dl[/red]')
+            return False
+        
         id = id or await self._getPostID(url)
 
-        path = await helper.resolve_path(path)
+        path = await self.helper.resolve_path(path)
 
         headers = self.headers.copy()
         if token:
             headers['Authorization'] = f'Bearer {token}'
 
         if not id:
-            console.print('[red]Cannot download: no ID[/red]')
-            return False
+            return err()
 
         url = f'https://sankakuapi.com/pools/{id}'
 
-        async with aiohttp.ClientSession() as s:
-            async with s.get(url, headers=headers, timeout=self.timeout) as resp:
-                if resp.status == 200:
-                    js: dict = await resp.json()
-                    posts = js.get('posts', [])
-                    if not posts:
-                        console.print('[red]No posts in book data (maybe token issue)[/red]')
-                        return False
-                    
-                    if pages is None:
-                        selected_posts = posts
-                    elif isinstance(pages, int):
-                        selected_posts = posts[:pages]
-                    elif isinstance(pages, list):
-                        selected_posts = [posts[i-1] for i in pages if 0 < i <= len(posts)]
-                    else:
-                        console.print('[red]Invalid pages parameter[/red]')
-                        return False
-                    
-                    selected_posts = [post.get('id') for post in selected_posts]
-                    if not selected_posts:
-                        console.print('[red]No posts[/red]')
-                        return False
+        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries)
+        if data is None:
+            return err()
+        
+        posts = data.get('posts', [])
+        if not posts:
+            console.print('[red]No posts in book data (maybe token issue)[/red]')
+            return err()
+        
+        if pages is None:
+            selected_posts = posts
+        elif isinstance(pages, int):
+            selected_posts = posts[:pages]
+        elif isinstance(pages, list):
+            selected_posts = [posts[i-1] for i in pages if 0 < i <= len(posts)]
+        else:
+            console.print('[red]Invalid pages parameter[/red]')
+            return err()
+        
+        selected_posts = [post.get('id') for post in selected_posts]
+        if not selected_posts:
+            console.print('[red]No posts[/red]')
+            return err()
 
-                    tasks = []
-                    
-                    for i, post_id in enumerate(selected_posts, start=1):
-                        furl = await self._get_fu(id=post_id)
-                        if furl:
-                            tasks.append(SDL(mbSize).download(furl, path, self.timeout, i))
+        tasks = []
+        
+        async def dl(post_id, i):
+            furl = await self._get_fu(id=post_id, token=token, timeout=timeout, retries=retries)
+            if furl:
+                return await SDL(mbSize).download(furl, path, timeout, i, retries)
 
-                    results = await asyncio.gather(*tasks)
-                    
-                    if zip:
-                        zip_path = path / 'temp' / f'{id}.zip'
-                        zpc = zip_path.parent
-                        zpc.mkdir(exist_ok=True, parents=True)
+        for i, post_id in enumerate(selected_posts, start=1):
+            tasks.append(dl(post_id, i))
+
+        results = await asyncio.gather(*tasks)
+        
+        if zip:
+            zip_path = path / 'temp' / f'{id}.zip'
+            zpc = zip_path.parent
+            zpc.mkdir(exist_ok=True, parents=True)
+            
+            of = []
+            
+            for status, file_path, page_index in results:
+                if page_index is None:
+                    console.print(f'[red]Missing page index for file {file_path}. ABORTING!!![/red]')
+                    return err()
+                if not status or file_path is None:  # 'None' file_path?!! SKIP SKIP SKIP!!!
+                    console.print(f'[red]Failed to download page {page_index} (file: {file_path})[/red]')
+                    continue
+                if status and file_path and Path(file_path).exists():
+                    file_path = Path(file_path)
+                    ext = file_path.suffix
+                    new_path = file_path.with_name(f"{page_index:03d}{ext}")
+                    file_path.move(new_path)
+                    of.append(new_path)
+
+            of.sort()
+
+            with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_STORED) as zf:
+                for file in of:
+                    if file.is_file():
+                        console.print(f'[dim]Adding {file.name} to archive...[/dim]')
+                        zf.write(file, arcname=file.name)
+                        file.unlink()
                         
-                        of = []
-                        
-                        for status, file_path, page_index in results:
-                            if page_index is None:
-                                console.print(f'[red]Missing page index for file {file_path}. ABORTING!!![/red]')
-                                return False
-                            if not status or file_path is None:  # 'None' file_path?!! SKIP SKIP SKIP!!!
-                                console.print(f'[red]Failed to download page {page_index} (file: {file_path})[/red]')
-                                continue
-                            if status and file_path and Path(file_path).exists():
-                                file_path = Path(file_path)
-                                ext = file_path.suffix
-                                new_path = file_path.with_name(f"{page_index:03d}{ext}")
-                                file_path.move(new_path)
-                                of.append(new_path)
-
-                        of.sort()
-
-                        with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_STORED) as zf:
-                            for file in of:
-                                if file.is_file():
-                                    console.print(f'[dim]Adding {file.name} to archive...[/dim]')
-                                    zf.write(file, arcname=file.name)
-                                    file.unlink()
-                                    
-                        final_zip_path = path / f'{id}.zip'
-                        zip_path.move(final_zip_path)
-                        zpc.rmdir()
-                        
-                        console.print(f'[green]Book downloaded and zipped to {final_zip_path}[/green]')
-                    else:
-                        console.print(f'[green]Book downloaded to {path}[/green]')
-                    return True
-                elif resp.status == 403:
-                    console.print(f'[red]Access denied: HTTP {resp.status} (maybe token issue)[/red]')
-                else:
-                    console.print(f'[yellow]Failed to get book data: HTTP {resp.status} (use your token and/or try again)[/yellow]')
-        return False
+            final_zip_path = path / f'{id}.zip'
+            zip_path.rename(final_zip_path)
+            zpc.rmdir()
+            
+            console.print(f'[green]Book downloaded and zipped to {final_zip_path}[/green]')
+        else:
+            console.print(f'[green]Book downloaded to {path}[/green]')
+        return True
+    
+    async def close_session(self):
+        await self.helper._session_close()
     
 if __name__ == '__main__':
     async def main():

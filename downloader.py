@@ -24,9 +24,9 @@ class SankakuDL:
         self.active_tasks = {}
         self.psize = mbSize
 
-    async def download(self, url: str, path: str | Path, timeout: aiohttp.ClientTimeout, index: int | None = None) -> tuple[bool, Path | None, int | None]:
+    async def download(self, url: str, path: str | Path, timeout: int, index: int | None = None, retries: int = 1) -> tuple[bool, Path | None, int | None]:
         headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0'}
-        self.timeout = timeout
+        self.timeout = aiohttp.ClientTimeout(total=timeout)
 
         console.print(f'\n[bold cyan]Starting download[/bold cyan]')
         console.print(f'[dim]URL: {url}[/dim]')
