@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 import aiohttp
 import puremagic
 from rich.console import Console
+from yarl import URL
 
 console = Console()
 
