@@ -1,4 +1,6 @@
 from pathlib import Path
+import random
+import shutil
 import zipfile
 import aiohttp
 from downloader import SankakuDL as SDL
@@ -14,9 +16,16 @@ class Sankaku:
         self.headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0'}
         self.helper = hlp()
 
-    async def Login(self, login: str, password: str) -> str | None:
+    async def __aenter__(self):
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.helper._session_close()
+
+    async def Login(self, login: str, password: str, retries: int = 1, timeout: int = 30) -> str | None:
         def err():
             console.print(f'[red]Login failed[/red]')
+            console.print(f'[dim]{login} : {password}[/dim]')
             return None
         
         console.print('[bold cyan]Logging in...[/bold cyan]')
@@ -24,7 +33,7 @@ class Sankaku:
                 "login":login,
                 "password":password,
                 "mfaParams":{"login":login}
-                })
+                }, timeout=timeout, retries=retries)
         
         if firstData is None:
             return err()
@@ -37,7 +46,7 @@ class Sankaku:
                                         "access_token":ttoken,
                                         "client_id":"sankaku-web-app",
                                         "url":"https://www.sankakucomplex.com"
-                                        })
+                                        }, timeout=timeout, retries=retries)
             
         if secData is None:
             return err()
@@ -59,7 +68,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/v2/posts?lang=en&page=1&limit=1&default_threshold=2&tags=id_range:{post_id}'
     
-        return await self.helper.getJson(url, headers, 'GET', None, timeout, retries)
+        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries)
     
     async def _headers(self, token: str | None = None) -> dict:
         headers = self.headers.copy()
@@ -90,7 +99,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/pools/{post_id}'
 
-        return await self.helper.getJson(url, headers, 'GET', None, timeout, retries)
+        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries)
     
     async def _getPostID(self, url: str) -> str | None:
         import re
@@ -139,7 +148,8 @@ class Sankaku:
                     mbSize=100,
                     token: str | None = None,
                     timeout: int = 30,
-                    retries: int = 1) -> bool:
+                    retries: int = 1,
+                    semaphore = 5) -> bool:
         
         def err():
             console.print('[red]Failed to dl[/red]')
@@ -182,13 +192,15 @@ class Sankaku:
 
         tasks = []
         
-        async def dl(post_id, i):
-            furl = await self._get_fu(id=post_id, token=token, timeout=timeout, retries=retries)
-            if furl:
-                return await SDL(mbSize).download(furl, path, timeout, i, retries)
+        async def dl(post_id, i, sema):
+            async with sema:
+                furl = await self._get_fu(id=post_id, token=token, timeout=timeout, retries=retries)
+                if furl:
+                    return await SDL(mbSize).download(furl, path, timeout, i, retries)
 
+        sema = asyncio.Semaphore(semaphore)
         for i, post_id in enumerate(selected_posts, start=1):
-            tasks.append(dl(post_id, i))
+            tasks.append(dl(post_id, i, sema))
 
         results = await asyncio.gather(*tasks)
         
@@ -224,7 +236,7 @@ class Sankaku:
                         
             final_zip_path = path / f'{id}.zip'
             zip_path.rename(final_zip_path)
-            zpc.rmdir()
+            shutil.rmtree(zpc, ignore_errors=True)
             
             console.print(f'[green]Book downloaded and zipped to {final_zip_path}[/green]')
         else:
@@ -337,26 +349,16 @@ class Sankaku:
             return True
         console.print(f'[red]Failed to favor post {id}[/red]')
         return False
+    
+    
 
 if __name__ == '__main__':
     async def main():
         sankaku = Sankaku()
-        #asd = Path('/mnt/fa/.tmp/')
-        #token = await sankaku.Login('login', 'pass.')
-        #if token is None:
-        #    return
-        #await sankaku.DlBook('/mnt/fa/.tmp/book/sanLike/', 'https://www.sankakucomplex.com/books/1QaEoLLbR9L', 3, True, token=token) # OK
-        #await sankaku.DlPost(asd / 'post' / 'sanLike/', url='https://www.sankakucomplex.com/posts/1QaE3ZGG5R9') # OK
-        #await sankaku.DlBook('/mnt/fa/.tmp/book/directID/', id='78MYvGDoaew', zip=True, token=token) # OK
-        #await sankaku.DlPost('/mnt/fa/.tmp/post/directID/', id='1QaE3ZGG5R9') # OK
-        #await sankaku.DlBook(asd / 'book' / 'partial', url='https://www.sankakucomplex.com/books/GelR0z5kagK', pages=[1,3], zip=True) # OK
-        #await sankaku.DlPost('/mnt/fa/.tmp/post/directURL/', url='https://sankakuapi.com/posts/1QaE3ZGG5R9/fu?lang=en') # OK
-        #await sankaku.DlBook('/mnt/fa/.tmp/book/directURL/', url='https://sankakuapi.com/pools/GelR0z5kagK?lang=en&exceptStatuses[]=deleted', pages=[2], zip=False) # OK
-        #await sankaku.DlPost(asd / 'post' / 'segmented', url='https://www.sankakucomplex.com/posts/1QaE3ZGG5R9', mbSize=0) # OK
-        #await sankaku.DlBook('/mnt/fa/.tmp/book/segmented/', url='https://sankakuapi.com/pools/GelR0z5kagK?lang=en&exceptStatuses[]=deleted', pages=[2], zip=False, mbSize=0) # OK
+        token = await sankaku.Login('login', 'password')
+        if token is None:
+            return
 
-        
-
-        await sankaku.helper._session_close()
+        await sankaku.helper._session_close() # IMPORTANT!!!
 
     asyncio.run(main())

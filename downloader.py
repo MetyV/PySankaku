@@ -1,4 +1,4 @@
-# maybe shit
+# galimoe govno, AI slop, ne budu ispravljat, eto ne moia rabota, eto rabota AI
 from pathlib import Path
 from urllib.parse import urlparse
 import aiofiles

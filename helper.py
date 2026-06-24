@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlparse
 import aiohttp
+import puremagic
 from rich.console import Console
 
 console = Console()
@@ -28,7 +29,7 @@ class Helper:
         parsed = urlparse(url)
         return Path(parsed.path).name
     
-    async def request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, timeout: int = 30, retries: int = 1) -> tuple[aiohttp.ClientResponse, int] | None:
+    async def request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1) -> tuple[aiohttp.ClientResponse, int] | None:
         ttimeout = aiohttp.ClientTimeout(total=timeout)
         st = None
         def printErr(text):
@@ -42,16 +43,16 @@ class Helper:
 
         for i in range(1, retries+1):
             try:
-                r = await self.session.request(method, url, headers=headers, json=json, timeout=ttimeout, allow_redirects=True)
+                r = await self.session.request(method, url, headers=headers, json=json, data=data, timeout=ttimeout, allow_redirects=True)
                 st = r.status
                 newUrl = r.url
                 match st:
                     case 404: return printErr(f'No page')
                     case (301, 302, 303, 307, 308):
                         console.print(f'[yellow]Redirect: {st}[/yellow]')
-                        if not isinstance(newUrl, str):
+                        if not isinstance(newUrl, URL): # ne rabotaet navernoe, no vsegda dolzhno byt URL
                             return printErr('No redirect url extracted')
-                        return await self.request(newUrl, headers, method, json, timeout, retries)
+                        return await self.request(newUrl, headers, method, json, data, timeout, retries)
                     case 400:return printErr('Bad request(invalid request)')
                     case 401:return printErr('Unauthorized(token?)')
                     case 403:return printErr('Forbidden(token?)')
@@ -71,12 +72,12 @@ class Helper:
                 if i>=retries+1:
                     return None
                 
-    async def getJson(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, timeout: int = 30, retries: int = 1) -> dict | None:
+    async def getJson(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1) -> dict | None:
         def printErr():
             console.print(f'[red]Json data fetch failed[/red]')
             return None
         
-        req = await self.request(url, headers, method, json, timeout, retries)
+        req = await self.request(url, headers, method, json, data, timeout, retries)
 
         if req is None:
             return printErr()
@@ -88,6 +89,12 @@ class Helper:
             return js
         
         return printErr()
+    
+    def get_mime(self, file: Path | str) -> str:
+        try:
+            return puremagic.from_file(file, mime=True)
+        except puremagic.PureError:
+            return "application/octet-stream"
     
 class accounts:
     def __init__(self) -> None:
