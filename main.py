@@ -17,6 +17,7 @@ class Sankaku:
         self.helper = hlp()
 
     async def __aenter__(self):
+        await self.helper._session_init()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
