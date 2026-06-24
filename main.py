@@ -350,7 +350,40 @@ class Sankaku:
         console.print(f'[red]Failed to favor post {id}[/red]')
         return False
     
-    
+    async def TagMedia(self, File: Path | str, token: str, timeout: int = 30, retries: int = 1) -> list[str] | bool:
+        File = await self.helper.resolve_path(File)
+        if not File.exists():
+            console.print(f'[red]File {File} does not exist[/red]')
+            return False
+        
+        mime = self.helper.get_mime(File)
+        mimet = mime.split('/')
+        configs = {
+            'image': {
+                'url': 'https://sankakuapi.com/posts/tagging_image',
+                'field': 'art[image_input]'
+            },
+            'video': {
+                'url': 'https://sankakuapi.com/posts/tagging_video',
+                'field': 'art[video_input]'
+            }
+        }
+        if mimet[0] not in configs:
+            console.print(f'[red]Unsupported file type: {mime}[/red]')
+            return False
+        
+        config = configs['video'] if mimet[1] == 'gif' else configs[mimet[0]]
+        url = config['url']
+        fieldName = config['field']
+        
+        headers = await self._headers(token)
+        data = aiohttp.FormData()
+        with open(File, 'rb') as f:
+            data.add_field(fieldName, f.read(), filename=File.name, content_type=mime)
+
+        resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout, retries=retries)
+
+        return resp[1] if resp else False
 
 if __name__ == '__main__':
     async def main():
