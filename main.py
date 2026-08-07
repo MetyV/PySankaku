@@ -7,7 +7,8 @@ from downloader import SankakuDL as SDL
 import asyncio
 from rich.console import Console
 from helper import Helper as hlp
-from helper import accounts
+from accounts import accounts
+from endpoints import *
 
 console = Console()
 
@@ -30,7 +31,7 @@ class Sankaku:
             return None
         
         console.print('[bold cyan]Logging in...[/bold cyan]')
-        firstData = await self.helper.getJson('https://login.sankakucomplex.com/auth/token', self.headers, 'POST', {
+        firstData = await self.helper.getJson(LOGIN_REFRESH_TOKEN, self.headers, 'POST', {
                 "login":login,
                 "password":password,
                 "mfaParams":{"login":login}
@@ -43,10 +44,10 @@ class Sankaku:
         if not isinstance(ttoken, str):
             return err()
         
-        secData = await self.helper.getJson('https://sankakuapi.com/sso/token-exchange', self.headers, 'POST', {
+        secData = await self.helper.getJson(TOKEN_EXCHANGE, self.headers, 'POST', {
                                         "access_token":ttoken,
                                         "client_id":"sankaku-web-app",
-                                        "url":"https://www.sankakucomplex.com"
+                                        "url":BASE_URL
                                         }, timeout=timeout, retries=retries, proxy=proxy)
             
         if secData is None:
@@ -67,7 +68,7 @@ class Sankaku:
         
         headers, post_id = tfetch
 
-        url = f'https://sankakuapi.com/v2/posts?lang=en&page=1&limit=1&default_threshold=2&tags=id_range:{post_id}'
+        url = f'{BASE_API_URL}/v2/posts?lang=en&page=1&limit=1&tags=id_range:{post_id}'
     
         return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=proxy)
     
@@ -98,7 +99,7 @@ class Sankaku:
         
         headers, post_id = tfetch
 
-        url = f'https://sankakuapi.com/pools/{post_id}'
+        url = f'{API_BOOKS_URL}/{post_id}'
 
         return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=proxy)
     
@@ -120,7 +121,7 @@ class Sankaku:
 
         headers = await self._headers(token)
         
-        url = f'https://sankakuapi.com/posts/{id}/fu'
+        url = f'{API_POSTS_URL}/{id}/fu'
         
         data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy)
         if data is None:
@@ -166,7 +167,7 @@ class Sankaku:
         if not id:
             return err()
 
-        url = f'https://sankakuapi.com/pools/{id}'
+        url = f'{API_BOOKS_URL}/{id}'
 
         data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy)
         if data is None:
@@ -251,7 +252,7 @@ class Sankaku:
     async def votePost(self, url: str, rating: int | list[int], token: str | list[str], id: str | None = None, proxy: str | None = None):
         id = id if id else await self._getPostID(url)
         
-        apiurl = f'https://sankakuapi.com/posts/{id}/vote'
+        apiurl = f'{API_POSTS_URL}/{id}/vote'
         token = [token] if isinstance(token, str) else token
         rating = [rating] if isinstance(rating, int) else rating
         if len(rating) < len(token):
@@ -265,7 +266,6 @@ class Sankaku:
         console.print(f'[green]Voted on post {id} with ratings {rating}[/green]')
     
     async def regAcc(self, login: str | None = None, password: str | None = None, mail: str | None = None, proxy: str | None = None) -> bool:
-        url = 'https://login.sankakucomplex.com/users'
         json={
             "entry_query":"Y2xpZW50X2lkPXNhbmtha3Utd2ViLWFwcCZsYW5nPWVuJnJlZGlyZWN0X3VyaT1odHRwcyUzQSUyRiUyRnNhbmtha3UuYXBwJTJGc3NvJTJGY2FsbGJhY2smcmVzcG9uc2VfdHlwZT1jb2RlJnJvdXRlPXJlZ2lzdHJhdGlvbiZzY29wZT1vcGVuaWQmc3RhdGU9cmV0dXJuX3VyaSUzRGh0dHBzJTNBJTJGJTJGc2Fua2FrdS5hcHAlMkZhdXRoJnRoZW1lPXdoaXRlJnRvX3BheW1lbnRzPWZhbHNl",
             "user":{
@@ -278,7 +278,7 @@ class Sankaku:
 
         headers = await self._headers()
 
-        resp = await self.helper.request(url, headers, 'POST', json, proxy=proxy)
+        resp = await self.helper.request(USERS_API_URL, headers, 'POST', json, proxy=proxy)
         if resp is not None and resp[1] == 200:
             console.print(f'[green]Reg success: {mail}:{password}[/green]')
             return True
@@ -286,11 +286,9 @@ class Sankaku:
         return False
 
     async def resendVerification(self, token: str, proxy: str | None = None):
-        url = 'https://sankakuapi.com/auth/request-validation'
-        
         headers = await self._headers(token)
 
-        resp = await self.helper.request(url, headers, 'POST', proxy=proxy)
+        resp = await self.helper.request(API_REQUEST_RESEND_VERIFICATION, headers, 'POST', proxy=proxy)
         if resp:
             console.print(f'[green]Verification resended[/green]')
             return True
@@ -310,7 +308,7 @@ class Sankaku:
         if id is None:
             return err('id')
 
-        url=f'https://sankakuapi.com/users/{id}'
+        url=f'{USERS_API_URL}/{id}'
         json = {
             "user":{
                 "filter_content":enable
@@ -326,7 +324,7 @@ class Sankaku:
         return False
 
     async def getAccId(self, token: str, proxy: str | None = None):
-        url = 'https://sankakuapi.com/users/me'
+        url = f'{USERS_API_URL}/me'
         headers = await self._headers(token)
 
         resp = await self.helper.getJson(url, headers, proxy=proxy)
@@ -342,7 +340,7 @@ class Sankaku:
             console.print('[red]Failed to favor[/red]')
             return False
         
-        url = f'https://sankakuapi.com/posts/{id}/favorite'
+        url = f'{API_POSTS_URL}/{id}/favorite'
         headers = await self._headers(token)
 
         r = await self.helper.request(url, headers, 'POST' if fav else 'DELETE', {'post_id': id}, timeout=timeout, retries=retries, proxy=proxy)
@@ -362,11 +360,11 @@ class Sankaku:
         mimet = mime.split('/')
         configs = {
             'image': {
-                'url': 'https://sankakuapi.com/posts/tagging_image',
+                'url': f'{API_POSTS_URL}/tagging_image',
                 'field': 'art[image_input]'
             },
             'video': {
-                'url': 'https://sankakuapi.com/posts/tagging_video',
+                'url': f'{API_POSTS_URL}/tagging_video',
                 'field': 'art[video_input]'
             }
         }
