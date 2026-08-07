@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .env
 *.json
+test_all.py
 
 # ya znayu chto ty zdes', but you won't find anything ( ͡° ͜ʖ ͡°)
 BOOOOOTS.py

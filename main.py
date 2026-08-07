@@ -126,7 +126,10 @@ class Sankaku:
         data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy)
         if data is None:
             return err()
-        furl = data.get('file_url') or data.get('fallback_url') or data.get('sample_url')
+        fdata = data.get('data')
+        if not fdata:
+            return err()
+        furl = fdata.get('file_url') or fdata.get('fallback_url') or fdata.get('sample_url')
         if not furl:
             return err()
         return furl
@@ -278,7 +281,7 @@ class Sankaku:
 
         headers = await self._headers()
 
-        resp = await self.helper.request(USERS_API_URL, headers, 'POST', json, proxy=proxy)
+        resp = await self.helper.request(REGISTER_API_URL, headers, 'POST', json, proxy=proxy)
         if resp is not None and resp[1] == 200:
             console.print(f'[green]Reg success: {mail}:{password}[/green]')
             return True
@@ -324,10 +327,9 @@ class Sankaku:
         return False
 
     async def getAccId(self, token: str, proxy: str | None = None):
-        url = f'{USERS_API_URL}/me'
         headers = await self._headers(token)
 
-        resp = await self.helper.getJson(url, headers, proxy=proxy)
+        resp = await self.helper.getJson(API_TOKEN_DATA, headers, proxy=proxy)
         if resp:
             res = resp.get('user', {}).get('id')
             console.print(f'[green]Account ID: {res}[/green]')
