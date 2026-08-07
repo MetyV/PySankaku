@@ -15,7 +15,6 @@ class Sankaku:
     def __init__(self) -> None:
         self.headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0'}
         self.helper = hlp()
-        self.proxy = None
 
     async def __aenter__(self):
         await self.helper._session_init()
@@ -24,7 +23,7 @@ class Sankaku:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.helper._session_close()
 
-    async def Login(self, login: str, password: str, retries: int = 1, timeout: int = 30) -> str | None:
+    async def Login(self, login: str, password: str, retries: int = 1, timeout: int = 30, proxy: str | None = None) -> str | None:
         def err():
             console.print(f'[red]Login failed[/red]')
             console.print(f'[dim]{login} : {password}[/dim]')
@@ -35,7 +34,7 @@ class Sankaku:
                 "login":login,
                 "password":password,
                 "mfaParams":{"login":login}
-                }, timeout=timeout, retries=retries, proxy=self.proxy)
+                }, timeout=timeout, retries=retries, proxy=proxy)
         
         if firstData is None:
             return err()
@@ -48,7 +47,7 @@ class Sankaku:
                                         "access_token":ttoken,
                                         "client_id":"sankaku-web-app",
                                         "url":"https://www.sankakucomplex.com"
-                                        }, timeout=timeout, retries=retries, proxy=self.proxy)
+                                        }, timeout=timeout, retries=retries, proxy=proxy)
             
         if secData is None:
             return err()
@@ -60,7 +59,7 @@ class Sankaku:
         console.print(f'[green]Login successful: {token[:3]}...{token[-3:]}[/green]')
         return token
     
-    async def PostData(self, url: str, token: str, timeout: int = 30, retries: int = 30) -> dict | None:
+    async def PostData(self, url: str, token: str, timeout: int = 30, retries: int = 30, proxy: str | None = None) -> dict | None:
         tfetch = await self._fetch_data(url, token, 'post')
 
         if not tfetch:
@@ -70,7 +69,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/v2/posts?lang=en&page=1&limit=1&default_threshold=2&tags=id_range:{post_id}'
     
-        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=self.proxy)
+        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=proxy)
     
     async def _headers(self, token: str | None = None) -> dict:
         headers = self.headers.copy()
@@ -91,7 +90,7 @@ class Sankaku:
         
         return headers, post_id
     
-    async def BookData(self, url: str, token: str, timeout: int = 30, retries: int = 30) -> dict | None:
+    async def BookData(self, url: str, token: str, timeout: int = 30, retries: int = 30, proxy: str | None = None) -> dict | None:
         tfetch = await self._fetch_data(url, token, 'book')
 
         if not tfetch:
@@ -101,7 +100,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/pools/{post_id}'
 
-        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=self.proxy)
+        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=proxy)
     
     async def _getPostID(self, url: str) -> str | None:
         import re
@@ -112,7 +111,7 @@ class Sankaku:
             return None
         return match.group(1)
     
-    async def _get_fu(self, url: str = '', id: str | None = None, token: str | None = None, timeout: int = 30, retries: int = 1) -> str | None:
+    async def _get_fu(self, url: str = '', id: str | None = None, token: str | None = None, timeout: int = 30, retries: int = 1, proxy: str | None = None) -> str | None:
         def err():
             console.print('[red]Failed to get file URL[/red]')
             return None
@@ -123,7 +122,7 @@ class Sankaku:
         
         url = f'https://sankakuapi.com/posts/{id}/fu'
         
-        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=self.proxy)
+        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy)
         if data is None:
             return err()
         furl = data.get('file_url') or data.get('fallback_url') or data.get('sample_url')
@@ -131,8 +130,8 @@ class Sankaku:
             return err()
         return furl
     
-    async def DlPost(self, path: Path | str, url: str = '', mbSize=100, id: str | None = None, token: str | None = None, timeout: int = 30, retries: int = 1) -> bool:
-        furl = await self._get_fu(url=url, id=id, token=token, timeout=timeout, retries=retries)
+    async def DlPost(self, path: Path | str, url: str = '', mbSize=100, id: str | None = None, token: str | None = None, timeout: int = 30, retries: int = 1, proxy: str | None = None) -> bool:
+        furl = await self._get_fu(url=url, id=id, token=token, timeout=timeout, retries=retries, proxy=proxy)
         if furl is None:            
             console.print('[red]Failed to dl[/red]')
             return False
@@ -151,7 +150,8 @@ class Sankaku:
                     token: str | None = None,
                     timeout: int = 30,
                     retries: int = 1,
-                    semaphore = 5) -> bool:
+                    semaphore = 5,
+                    proxy: str | None = None) -> bool:
         
         def err():
             console.print('[red]Failed to dl[/red]')
@@ -168,7 +168,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/pools/{id}'
 
-        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=self.proxy)
+        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy)
         if data is None:
             return err()
         
@@ -196,7 +196,7 @@ class Sankaku:
         
         async def dl(post_id, i, sema):
             async with sema:
-                furl = await self._get_fu(id=post_id, token=token, timeout=timeout, retries=retries)
+                furl = await self._get_fu(id=post_id, token=token, timeout=timeout, retries=retries, proxy=proxy)
                 if furl:
                     return await SDL(mbSize).download(furl, path, timeout, i, retries)
 
@@ -248,7 +248,7 @@ class Sankaku:
     async def close_session(self):
         await self.helper._session_close()
 
-    async def votePost(self, url: str, rating: int | list[int], token: str | list[str], id: str | None = None):
+    async def votePost(self, url: str, rating: int | list[int], token: str | list[str], id: str | None = None, proxy: str | None = None):
         id = id if id else await self._getPostID(url)
         
         apiurl = f'https://sankakuapi.com/posts/{id}/vote'
@@ -260,11 +260,11 @@ class Sankaku:
             ({'score': rating[i]}, await self._headers(token[i]))
             for i in range(len(token))
         ]
-        tasks = [self.helper.request(apiurl, header, 'PUT', js, proxy=self.proxy) for js, header in r]
+        tasks = [self.helper.request(apiurl, header, 'PUT', js, proxy=proxy) for js, header in r]
         await asyncio.gather(*tasks)
         console.print(f'[green]Voted on post {id} with ratings {rating}[/green]')
     
-    async def regAcc(self, login: str | None = None, password: str | None = None, mail: str | None = None) -> bool:
+    async def regAcc(self, login: str | None = None, password: str | None = None, mail: str | None = None, proxy: str | None = None) -> bool:
         url = 'https://login.sankakucomplex.com/users'
         json={
             "entry_query":"Y2xpZW50X2lkPXNhbmtha3Utd2ViLWFwcCZsYW5nPWVuJnJlZGlyZWN0X3VyaT1odHRwcyUzQSUyRiUyRnNhbmtha3UuYXBwJTJGc3NvJTJGY2FsbGJhY2smcmVzcG9uc2VfdHlwZT1jb2RlJnJvdXRlPXJlZ2lzdHJhdGlvbiZzY29wZT1vcGVuaWQmc3RhdGU9cmV0dXJuX3VyaSUzRGh0dHBzJTNBJTJGJTJGc2Fua2FrdS5hcHAlMkZhdXRoJnRoZW1lPXdoaXRlJnRvX3BheW1lbnRzPWZhbHNl",
@@ -278,26 +278,26 @@ class Sankaku:
 
         headers = await self._headers()
 
-        resp = await self.helper.request(url, headers, 'POST', json, proxy=self.proxy)
+        resp = await self.helper.request(url, headers, 'POST', json, proxy=proxy)
         if resp is not None and resp[1] == 200:
             console.print(f'[green]Reg success: {mail}:{password}[/green]')
             return True
         console.print(f'[red]Reg fail: {mail}:{password}[/red]')
         return False
 
-    async def resendVerification(self, token: str):
+    async def resendVerification(self, token: str, proxy: str | None = None):
         url = 'https://sankakuapi.com/auth/request-validation'
         
         headers = await self._headers(token)
 
-        resp = await self.helper.request(url, headers, 'POST', proxy=self.proxy)
+        resp = await self.helper.request(url, headers, 'POST', proxy=proxy)
         if resp:
             console.print(f'[green]Verification resended[/green]')
             return True
         console.print(f'[red]Verification resend fail[/red]')
         return False
 
-    async def contentFilter(self, token: str | None = None, enable: bool = False, id: str | None = None, login: str | None = None, password: str | None = None) -> bool:
+    async def contentFilter(self, token: str | None = None, enable: bool = False, id: str | None = None, login: str | None = None, password: str | None = None, proxy: str | None = None) -> bool:
         def err(text):
             console.print(f'[red]Content filter switch error: {text}[/red]')
             return False
@@ -319,24 +319,24 @@ class Sankaku:
 
         headers = await self._headers(token)
 
-        resp = await self.helper.request(url, headers, 'PUT', json, proxy=self.proxy)
+        resp = await self.helper.request(url, headers, 'PUT', json, proxy=proxy)
         if resp and resp[1] == 200:
             console.print('[green]Content filter switched[/green]')
             return True
         return False
 
-    async def getAccId(self, token: str):
+    async def getAccId(self, token: str, proxy: str | None = None):
         url = 'https://sankakuapi.com/users/me'
         headers = await self._headers(token)
 
-        resp = await self.helper.getJson(url, headers, proxy=self.proxy)
+        resp = await self.helper.getJson(url, headers, proxy=proxy)
         if resp:
             res = resp.get('user', {}).get('id')
             console.print(f'[green]Account ID: {res}[/green]')
             return res
         return None
     
-    async def favorPost(self, url: str | None = None, token: str | None = None, fav: bool = True, id: str | None = None, timeout: int = 30, retries: int = 1) -> bool:
+    async def favorPost(self, url: str | None = None, token: str | None = None, fav: bool = True, id: str | None = None, timeout: int = 30, retries: int = 1, proxy: str | None = None) -> bool:
         id = id if id else await self._getPostID(url) if url else None
         if not id:
             console.print('[red]Failed to favor[/red]')
@@ -345,14 +345,14 @@ class Sankaku:
         url = f'https://sankakuapi.com/posts/{id}/favorite'
         headers = await self._headers(token)
 
-        r = await self.helper.request(url, headers, 'POST' if fav else 'DELETE', {'post_id': id}, timeout=timeout, retries=retries, proxy=self.proxy)
+        r = await self.helper.request(url, headers, 'POST' if fav else 'DELETE', {'post_id': id}, timeout=timeout, retries=retries, proxy=proxy)
         if r and r[1] == 200:
             console.print(f'[green]Post {id} {"favored" if fav else "unfavored"}[/green]')
             return True
         console.print(f'[red]Failed to favor post {id}[/red]')
         return False
     
-    async def TagMedia(self, File: Path | str, token: str, timeout: int = 30, retries: int = 1) -> list[str] | bool:
+    async def TagMedia(self, File: Path | str, token: str, timeout: int = 30, retries: int = 1, proxy: str | None = None) -> list[str] | bool:
         File = await self.helper.resolve_path(File)
         if not File.exists():
             console.print(f'[red]File {File} does not exist[/red]')
@@ -383,7 +383,7 @@ class Sankaku:
         with open(File, 'rb') as f:
             data.add_field(fieldName, f.read(), filename=File.name, content_type=mime)
 
-        resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout, retries=retries, proxy=self.proxy)
+        resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout, retries=retries, proxy=proxy)
 
         return resp[1] if resp else False
 
