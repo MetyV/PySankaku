@@ -3,13 +3,13 @@ aiohappyeyeballs==2.6.2
 aiohttp==3.13.5
 aiosignal==1.4.0
 attrs==26.1.0
-frozenlist==1.8.0
+frozenlist==1.8.0 # nahuya?
 idna==3.16
-markdown-it-py==4.2.0
+markdown-it-py==4.2.0 # idk for what this is but it was in the requirements.txt
 mdurl==0.1.2
 multidict==6.7.1
 propcache==0.5.2
 puremagic==2.2.0
 Pygments==2.20.0
-rich==15.0.0
+rich==15.0.0 # aka krasivo vivodim nothing
 yarl==1.24.2

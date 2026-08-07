@@ -352,7 +352,7 @@ class Sankaku:
         console.print(f'[red]Failed to favor post {id}[/red]')
         return False
     
-    async def TagMedia(self, File: Path | str, token: str, timeout: int = 30, retries: int = 1, proxy: str | None = None) -> list[str] | bool:
+    async def TagMedia(self, File: Path | str, token: str, timeout: int = 30, retries: int = 1, proxy: str | None = None) -> list | bool:
         File = await self.helper.resolve_path(File)
         if not File.exists():
             console.print(f'[red]File {File} does not exist[/red]')
@@ -385,11 +385,42 @@ class Sankaku:
 
         resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout, retries=retries, proxy=proxy)
 
-        return resp[1] if resp else False
+        return resp.get('tags', []) if resp else False
 
-    async def setProxy(self, proxy: str | None): # async potomu chto v helper.py _session_close async
-        self.proxy = proxy
-        await self.helper._session_close()
+    def extract_tags(self, text: list) -> list[str]:
+        if not text:
+            return []
+        tags = []
+        for item in text:
+            n = item.get('name')
+            if n:
+                tags.append(n)
+        return tags
+
+    def PostMedia(self, File: Path | str, token: str, parent: int | None = None, rating: str = "e", tags: list = [], timeout: int = 30, retries: int = 1, proxy: str | None = None) -> list[str] | bool:
+        '''
+        data = {
+            "post[parent_id]": "",
+            "post[rating]": "e", # Chtob ne banili. mojno i 's'
+            "post[tags]": '[]',
+            "post[upload_url]": "",
+            "post[pool_id]": "",
+            "post[reupload_post_id]": ""
+        }
+        files = {
+            "post[file]": (
+                "123.jpg",
+                open("123.jpg", "rb"),
+                "image/jpeg"  # MIME
+            )
+        }
+        response = requests.post(url, data=data, files=files)
+
+        koroche in another time, mne лень это делать
+        '''
+        pass
+
+
 
 if __name__ == '__main__':
     async def main():
