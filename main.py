@@ -15,6 +15,7 @@ class Sankaku:
     def __init__(self) -> None:
         self.headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0'}
         self.helper = hlp()
+        self.proxy = None
 
     async def __aenter__(self):
         await self.helper._session_init()
@@ -34,7 +35,7 @@ class Sankaku:
                 "login":login,
                 "password":password,
                 "mfaParams":{"login":login}
-                }, timeout=timeout, retries=retries)
+                }, timeout=timeout, retries=retries, proxy=self.proxy)
         
         if firstData is None:
             return err()
@@ -47,7 +48,7 @@ class Sankaku:
                                         "access_token":ttoken,
                                         "client_id":"sankaku-web-app",
                                         "url":"https://www.sankakucomplex.com"
-                                        }, timeout=timeout, retries=retries)
+                                        }, timeout=timeout, retries=retries, proxy=self.proxy)
             
         if secData is None:
             return err()
@@ -69,7 +70,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/v2/posts?lang=en&page=1&limit=1&default_threshold=2&tags=id_range:{post_id}'
     
-        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries)
+        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=self.proxy)
     
     async def _headers(self, token: str | None = None) -> dict:
         headers = self.headers.copy()
@@ -100,7 +101,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/pools/{post_id}'
 
-        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries)
+        return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=self.proxy)
     
     async def _getPostID(self, url: str) -> str | None:
         import re
@@ -122,7 +123,7 @@ class Sankaku:
         
         url = f'https://sankakuapi.com/posts/{id}/fu'
         
-        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries)
+        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=self.proxy)
         if data is None:
             return err()
         furl = data.get('file_url') or data.get('fallback_url') or data.get('sample_url')
@@ -167,7 +168,7 @@ class Sankaku:
 
         url = f'https://sankakuapi.com/pools/{id}'
 
-        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries)
+        data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=self.proxy)
         if data is None:
             return err()
         
@@ -259,7 +260,7 @@ class Sankaku:
             ({'score': rating[i]}, await self._headers(token[i]))
             for i in range(len(token))
         ]
-        tasks = [self.helper.request(apiurl, header, 'PUT', js) for js, header in r]
+        tasks = [self.helper.request(apiurl, header, 'PUT', js, proxy=self.proxy) for js, header in r]
         await asyncio.gather(*tasks)
         console.print(f'[green]Voted on post {id} with ratings {rating}[/green]')
     
@@ -277,7 +278,7 @@ class Sankaku:
 
         headers = await self._headers()
 
-        resp = await self.helper.request(url, headers, 'POST', json)
+        resp = await self.helper.request(url, headers, 'POST', json, proxy=self.proxy)
         if resp is not None and resp[1] == 200:
             console.print(f'[green]Reg success: {mail}:{password}[/green]')
             return True
@@ -289,7 +290,7 @@ class Sankaku:
         
         headers = await self._headers(token)
 
-        resp = await self.helper.request(url, headers, 'POST')
+        resp = await self.helper.request(url, headers, 'POST', proxy=self.proxy)
         if resp:
             console.print(f'[green]Verification resended[/green]')
             return True
@@ -318,7 +319,7 @@ class Sankaku:
 
         headers = await self._headers(token)
 
-        resp = await self.helper.request(url, headers, 'PUT', json)
+        resp = await self.helper.request(url, headers, 'PUT', json, proxy=self.proxy)
         if resp and resp[1] == 200:
             console.print('[green]Content filter switched[/green]')
             return True
@@ -328,7 +329,7 @@ class Sankaku:
         url = 'https://sankakuapi.com/users/me'
         headers = await self._headers(token)
 
-        resp = await self.helper.getJson(url, headers)
+        resp = await self.helper.getJson(url, headers, proxy=self.proxy)
         if resp:
             res = resp.get('user', {}).get('id')
             console.print(f'[green]Account ID: {res}[/green]')
@@ -344,7 +345,7 @@ class Sankaku:
         url = f'https://sankakuapi.com/posts/{id}/favorite'
         headers = await self._headers(token)
 
-        r = await self.helper.request(url, headers, 'POST' if fav else 'DELETE', {'post_id': id}, timeout=timeout, retries=retries)
+        r = await self.helper.request(url, headers, 'POST' if fav else 'DELETE', {'post_id': id}, timeout=timeout, retries=retries, proxy=self.proxy)
         if r and r[1] == 200:
             console.print(f'[green]Post {id} {"favored" if fav else "unfavored"}[/green]')
             return True
@@ -382,9 +383,13 @@ class Sankaku:
         with open(File, 'rb') as f:
             data.add_field(fieldName, f.read(), filename=File.name, content_type=mime)
 
-        resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout, retries=retries)
+        resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout, retries=retries, proxy=self.proxy)
 
         return resp[1] if resp else False
+
+    async def setProxy(self, proxy: str | None): # async potomu chto v helper.py _session_close async
+        self.proxy = proxy
+        await self.helper._session_close()
 
 if __name__ == '__main__':
     async def main():
@@ -393,6 +398,6 @@ if __name__ == '__main__':
         if token is None:
             return
 
-        await sankaku.helper._session_close() # IMPORTANT!!!
+        await sankaku.helper._session_close() # IMPORTANT!!! nu... ne sovsem
 
     asyncio.run(main())
