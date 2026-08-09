@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
@@ -314,10 +315,11 @@ class Sankaku:
         return tags
 
     async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: int = 60) -> dict | bool:
+        tagss = json.dumps([{"name": tag} for tag in tags])
         data = {
             "post[parent_id]": parentID,
             "post[rating]": rating, # Chtob ne banili. mojno i 's'
-            "post[tags]": tags,
+            "post[tags]": tagss,
             "post[upload_url]": "",
             "post[pool_id]": "",
             "post[reupload_post_id]": ""
@@ -344,8 +346,7 @@ if __name__ == '__main__':
         headers = sankaku.headers(token)
 
         # YOUR CODE
-
-
+        
         await sankaku.helper._session_close() # IMPORTANT!!! nu... ne sovsem
 
     asyncio.run(main())

@@ -43,33 +43,45 @@ class ILoveShit:
         if token:
             headers = self.sankaku.headers(token)
 
-        return await self.sankaku.tagMedia(File, headers, timeout)
+        if not headers:
+            logging.error('I need auth(token or headers) for tagging!!!')
+            return False
+
+        a = await self.sankaku.tagMedia(File, headers, timeout)
+
+        return a
 
     async def postMedia(self, File: Path | str, token: str = '', extraTags: list = [], headers: dict = {}, parentID: str = '', rating: str = 'e', timeout: int = 60, tags: list = []) -> dict | bool:
-        if token:
+        if token and not headers:
             headers = self.sankaku.headers(token)
 
         if not headers:
             logging.error('I need auth(token or headers) for posting!!!')
             return False
 
-        if not tags:
-            ttags = await self.tagMedia(File, headers=headers, timeout=timeout)
+        if not tags: # 500 error. idk
+            ttags = await self.tagMedia(File, token=token, headers=headers, timeout=timeout)
             if isinstance(ttags, bool):
                 logging.error('Failed to get tags automatically.')
                 return False 
             tags = [tag.get('name') for tag in ttags]
 
         if extraTags:
-            tags.append(extraTag for extraTag in extraTags)
+            tags.extend(extraTags)
             
         return await self.sankaku.postMedia(File, tags, headers, parentID, rating, timeout)
 
-    async def favorPost(self,) # in future
+    #async def favorPost(self,) # in future
 
 if __name__ == '__main__':
     async def main():
         fp = ILoveShit()
+
+        tk = await fp.login('2', '1')
+
+        if isinstance(tk, bool) or isinstance(tk, tuple):
+            return
+
 
         await fp.sankaku.helper._session_close()
         await fp.helper._session_close() # IMPORTANT!!! nu... ne sovsem
