@@ -34,7 +34,7 @@ class ILoveShit:
         ref = await self.sankaku.getRefreshToken(login, password, timeout, headers)
         if isinstance(ref, bool):
             return ref
-        tok = await self.sankaku.getToken(ref, timeout, headers)
+        tok = await self.sankaku.exchangeToken(ref, timeout, headers)
         if isinstance(tok, bool):
             return tok
         return (tok, newToken) if newToken else tok
@@ -65,7 +65,7 @@ class ILoveShit:
             
         return await self.sankaku.postMedia(File, tags, headers, parentID, rating, timeout)
 
-    async def favorPost(self,)
+    async def favorPost(self,) # in future
 
 if __name__ == '__main__':
     async def main():

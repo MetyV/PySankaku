@@ -1,5 +1,8 @@
 ![AI-assisted](https://img.shields.io/badge/AI--assisted-all-blue)
 
+**Core of the project is `api.py` + `helper.py`.**
+I'm actively working on the API. Everything else (downloader, use.py, etc.) is secondary / low priority / WIP
+
 Code's shit, idgaf, flow state did it. Improvements? Eventually. Maybe. If the ADHD gods bless me again.
 
 TODO:
