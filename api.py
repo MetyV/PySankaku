@@ -107,7 +107,7 @@ class Sankaku:
             return False
         
         if headers is None:
-            headers = self.headers
+            headers = self._headers
 
         url = f'{API_POSTS_URL}/{id}/fu'
         data = await self.helper.getJson(url, headers, timeout=timeout)
@@ -137,7 +137,7 @@ class Sankaku:
             return False
         
         if headers is None:
-            headers = self.headers
+            headers = self._headers
 
         url = f'{API_BOOKS_URL}/{id}'
         data = await self.helper.getJson(url, headers, timeout=timeout)
@@ -151,7 +151,7 @@ class Sankaku:
             return False
         
         if headers is None:
-            headers = self.headers
+            headers = self._headers
 
         url = f'{BASE_API_URL}/v2/posts?&page=1&limit=1&default_threshold=0&tags=id_range:{id}'
         data = await self.helper.getJson(url, headers, timeout=timeout)
@@ -172,7 +172,7 @@ class Sankaku:
             return False
         
         if headers is None:
-            headers = self.headers
+            headers = self._headers
 
         method = 'PUT' if vote > 0 else 'DELETE'
 
@@ -194,7 +194,7 @@ class Sankaku:
             }
 
         if not headers:
-            headers = self.headers
+            headers = self._headers
 
         data = await self.helper.getJson(REGISTER_API_URL, headers, 'POST', json, timeout=timeout)
         if data is None:

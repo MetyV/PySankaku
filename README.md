@@ -24,5 +24,5 @@ In progress (almost)
 - [ ] Account editing
 - [x] Auto-tagging
 - [x] Posting (upload)
-- [ ] Post parsing
+- [ ] Post downloading
 </details>
