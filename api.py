@@ -57,7 +57,7 @@ class Sankaku:
         logging.info('Refresh token retrieved successfully')
         return token
 
-    async def getToken(self, refToken: str, timeout: int = 10, headers: dict | None = None) -> str | bool:
+    async def exchangeToken(self, refToken: str, timeout: int = 10, headers: dict | None = None) -> str | bool:
         def err():
             logging.error('Token retrieval failed')
             return False
@@ -337,7 +337,7 @@ if __name__ == '__main__':
         token = await sankaku.getRefreshToken('login/mail', 'password')
         if not isinstance(token, str):
             return
-        token = await sankaku.getToken(token)
+        token = await sankaku.exchangeToken(token)
         if not isinstance(token, str):
             return
 
