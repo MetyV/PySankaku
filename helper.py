@@ -23,19 +23,19 @@ class Helper:
             await self._session_close()
         self.session = aiohttp.ClientSession()
 
-    async def resolve_path(self, path: Path | str) -> Path:
+    def resolve_path(self, path: Path | str) -> Path:
         return Path(path).resolve() if isinstance(path, str) else path.resolve()
     
     def get_filename_from_url(self, url: str) -> str:
         parsed = urlparse(url)
         return Path(parsed.path).name
     
-    async def request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> tuple[aiohttp.ClientResponse, int] | None:
+    async def request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> tuple:
         ttimeout = aiohttp.ClientTimeout(total=timeout)
         st = None
         def printErr(text):
             console.print(f'[red]{text}: {st}[/red]')
-            return None
+            return (None, None)
         
         if self.session is None:
             await self._session_init()
@@ -71,19 +71,19 @@ class Helper:
             except Exception as e:
                 console.print(f'[yellow]Request error: {i+1} try[/yellow]' if i<retries else f'[red]Request error: {e}[/red]')
                 if i>=retries+1:
-                    return None
+                    return (None, None)
                 
     async def getJson(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> dict | None:
         def printErr():
             console.print(f'[red]Json data fetch failed[/red]')
             return None
         
-        req = await self.request(url, headers, method, json, data, timeout, retries, proxy)
+        resp, _ = await self.request(url, headers, method, json, data, timeout, retries, proxy)
 
-        if req is None:
+        if resp is None:
             return printErr()
         
-        js = await req[0].json()
+        js = await resp.json()
         
         if js:
             console.print('[green]Json data fetched[/green]')

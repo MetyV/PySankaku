@@ -6,7 +6,6 @@ LOGIN_REFRESH_TOKEN = f'{BASE_LOGIN_URL}/auth/token'
 TOKEN_EXCHANGE = f'{BASE_API_URL}/sso/token-exchange'
 REGISTER_API_URL = f'{BASE_LOGIN_URL}/users'
 USERS_API_URL = f'{BASE_API_URL}/users'
-API_TOKEN_DATA = f'{USERS_API_URL}/me'
 API_REQUEST_RESEND_VERIFICATION = f'{BASE_API_URL}/auth/request-validation'
 
 API_BOOKS_URL = f'{BASE_API_URL}/pools'

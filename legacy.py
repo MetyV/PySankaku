@@ -1,3 +1,5 @@
+# this code is absolutely shit! never use him
+# i'll delete him in future
 from pathlib import Path
 import random
 import shutil
@@ -24,13 +26,24 @@ class Sankaku:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.helper._session_close()
 
-    async def Login(self, login: str, password: str, retries: int = 1, timeout: int = 30, proxy: str | None = None) -> str | None:
+    async def Login(self, login: str | None = None, password: str | None = None, retries: int = 1, timeout: int = 30, proxy: str | None = None, token: str | None = None) -> tuple:
+        '''
+        returns token and new(T/F)
+        '''
         def err():
             console.print(f'[red]Login failed[/red]')
-            console.print(f'[dim]{login} : {password}[/dim]')
-            return None
+            return (None, None)
         
         console.print('[bold cyan]Logging in...[/bold cyan]')
+        if token:
+            res = await self.getAccId(token)
+            if res is not None: # if None, then token is invalid and we need to login with login/password
+                console.print(f'[green]Login successful: {token[:3]}...{token[-3:]}[/green]')
+                return (token, False)
+            if not login or not password:
+                console.print(f'[red]Token invalid and no login/password provided[/red]')
+                return err()
+
         firstData = await self.helper.getJson(LOGIN_REFRESH_TOKEN, self.headers, 'POST', {
                 "login":login,
                 "password":password,
@@ -58,7 +71,7 @@ class Sankaku:
             return err()
         
         console.print(f'[green]Login successful: {token[:3]}...{token[-3:]}[/green]')
-        return token
+        return (token, True)
     
     async def PostData(self, url: str, token: str, timeout: int = 30, retries: int = 30, proxy: str | None = None) -> dict | None:
         tfetch = await self._fetch_data(url, token, 'post')
@@ -72,7 +85,7 @@ class Sankaku:
     
         return await self.helper.getJson(url, headers, 'GET', None, timeout=timeout, retries=retries, proxy=proxy)
     
-    async def _headers(self, token: str | None = None) -> dict:
+    def _headers(self, token: str | None = None) -> dict:
         headers = self.headers.copy()
         if token:
             headers['Authorization'] = f'Bearer {token}'
@@ -82,7 +95,7 @@ class Sankaku:
     async def _fetch_data(self, url: str, token: str, type: str) -> tuple[dict, str] | None:
         console.print(f'[dim]Fetching {type} data...[/dim]')
 
-        headers = await self._headers(token)
+        headers = self._headers(token)
 
         post_id = await self._getPostID(url)
         if not post_id:
@@ -119,7 +132,7 @@ class Sankaku:
         
         id = id if id else await self._getPostID(url)
 
-        headers = await self._headers(token)
+        headers = self._headers(token)
         
         url = f'{API_POSTS_URL}/{id}/fu'
         
@@ -165,7 +178,7 @@ class Sankaku:
 
         path = await self.helper.resolve_path(path)
 
-        headers = await self._headers(token)
+        headers = self._headers(token)
 
         if not id:
             return err()
@@ -261,7 +274,7 @@ class Sankaku:
         if len(rating) < len(token):
             rating = (rating * (len(token) // len(rating) + 1))[:len(token)]
         r = [
-            ({'score': rating[i]}, await self._headers(token[i]))
+            ({'score': rating[i]}, self._headers(token[i]))
             for i in range(len(token))
         ]
         tasks = [self.helper.request(apiurl, header, 'PUT', js, proxy=proxy) for js, header in r]
@@ -279,7 +292,7 @@ class Sankaku:
             "lang":"en"
             }
 
-        headers = await self._headers()
+        headers = self._headers()
 
         resp = await self.helper.request(REGISTER_API_URL, headers, 'POST', json, proxy=proxy)
         if resp is not None and resp[1] == 200:
@@ -289,7 +302,7 @@ class Sankaku:
         return False
 
     async def resendVerification(self, token: str, proxy: str | None = None):
-        headers = await self._headers(token)
+        headers = self._headers(token)
 
         resp = await self.helper.request(API_REQUEST_RESEND_VERIFICATION, headers, 'POST', proxy=proxy)
         if resp:
@@ -298,12 +311,16 @@ class Sankaku:
         console.print(f'[red]Verification resend fail[/red]')
         return False
 
-    async def contentFilter(self, token: str | None = None, enable: bool = False, id: str | None = None, login: str | None = None, password: str | None = None, proxy: str | None = None) -> bool:
+    async def contentFilter(self, token: str | None = None, enable: bool = False, id: str | None = None, login: str | None = None, password: str | None = None, proxy: str | None = None) -> tuple:
         def err(text):
             console.print(f'[red]Content filter switch error: {text}[/red]')
-            return False
+            return (False, None, None)
+
+        new = False
+
+        if not token:
+            token, new = await self.Login(login, password)
         
-        token = token if token else await self.Login(login, password) if login and password else None
         if token is None:
             return err('token')
         
@@ -318,16 +335,16 @@ class Sankaku:
                 }
             }
 
-        headers = await self._headers(token)
+        headers = self._headers(token)
 
         resp = await self.helper.request(url, headers, 'PUT', json, proxy=proxy)
         if resp and resp[1] == 200:
             console.print('[green]Content filter switched[/green]')
-            return True
-        return False
+            return (True, new, token)
+        return (False, None, None)
 
     async def getAccId(self, token: str, proxy: str | None = None):
-        headers = await self._headers(token)
+        headers = self._headers(token)
 
         resp = await self.helper.getJson(API_TOKEN_DATA, headers, proxy=proxy)
         if resp:
@@ -343,7 +360,7 @@ class Sankaku:
             return False
         
         url = f'{API_POSTS_URL}/{id}/favorite'
-        headers = await self._headers(token)
+        headers = self._headers(token)
 
         r = await self.helper.request(url, headers, 'POST' if fav else 'DELETE', {'post_id': id}, timeout=timeout, retries=retries, proxy=proxy)
         if r and r[1] == 200:
@@ -378,7 +395,7 @@ class Sankaku:
         url = config['url']
         fieldName = config['field']
         
-        headers = await self._headers(token)
+        headers = self._headers(token)
         data = aiohttp.FormData()
         with open(File, 'rb') as f:
             data.add_field(fieldName, f.read(), filename=File.name, content_type=mime)
