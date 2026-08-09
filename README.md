@@ -6,23 +6,23 @@ TODO:
 1. Write readme -> OK
 2. More todo -> Fail
 4. AI readme -> 50%
-5. Post post (https://sankakuapi.com/posts POST Authorization)
-5.1
-data = {
-    "post[parent_id]": "",
-    "post[rating]": "e", # Chtob ne banili. mojno i 's'
-    "post[tags]": '[]',
-    "post[upload_url]": "",
-    "post[pool_id]": "",
-    "post[reupload_post_id]": ""
-}
-files = {
-    "post[file]": (
-        "123.jpg",
-        open("123.jpg", "rb"),
-        "image/jpeg"  # MIME
-    )
-}
-response = requests.post(url, data=data, files=files)
+5. Post post -> YES
+7. "сдшуте" -Ю тщ
    
 In progress (almost)
+
+
+<details>
+    <summary>Touch me</summary>
+
+- [x] Vote
+- [x] Get file URL (download link)
+- [x] Favorites (add / remove)
+- [x] Registration
+- [x] Login (token / password)
+- [x] Account info
+- [ ] Account editing
+- [x] Auto-tagging
+- [x] Posting (upload)
+- [ ] Post parsing
+</details>

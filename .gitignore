@@ -5,7 +5,8 @@ __pycache__/
 .env
 *.json
 test_all.py
-use.py
+
+legacy.py
 
 # ya znayu chto ty zdes', but you won't find anything ( ͡° ͜ʖ ͡°)
 BOOOOOTS.py

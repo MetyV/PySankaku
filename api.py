@@ -301,7 +301,7 @@ class Sankaku:
         resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout)
         return resp
         
-    async def tagMedia(self, File: Path | str, headers: dict, timeout: int = 60) -> list[tuple] | bool:
+    async def tagMedia(self, File: Path | str, headers: dict, timeout: int = 60) -> list[dict] | bool:
         resp = await self._ebaniyFile(File, headers=headers, timeout=timeout)
         if resp is None:
             logging.error(f'Failed to tag')
@@ -344,6 +344,7 @@ if __name__ == '__main__':
         headers = sankaku.headers(token)
 
         # YOUR CODE
+
 
         await sankaku.helper._session_close() # IMPORTANT!!! nu... ne sovsem
 
