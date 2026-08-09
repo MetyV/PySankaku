@@ -31,24 +31,6 @@ class Helper:
         return Path(parsed.path).name
     
     async def request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> tuple:
-        console.print(f'[cyan]--- REQUEST ---[/cyan]')
-        console.print(f'[cyan]Method: {method}[/cyan]')
-        console.print(f'[cyan]URL: {url}[/cyan]')
-        console.print(f'[cyan]Headers:[/cyan]')
-        for key, value in headers.items():
-            if key.lower() in ['authorization', 'cookie', 'x-csrf-token']:
-                console.print(f'  {key}: {value[:20]}...' if len(value) > 20 else f'  {key}: {value}')
-            else:
-                console.print(f'  {key}: {value}')
-        
-        if json:
-            console.print(f'[cyan]JSON body:[/cyan]')
-            console.print(json)
-        
-        if data:
-            console.print(f'[cyan]FormData fields:[/cyan]')
-        
-        console.print(f'[cyan]--- END REQUEST ---[/cyan]')
         ttimeout = aiohttp.ClientTimeout(total=timeout)
         st = None
         def printErr(text):
@@ -90,6 +72,7 @@ class Helper:
                 console.print(f'[yellow]Request error: {i+1} try[/yellow]' if i<retries else f'[red]Request error: {e}[/red]')
                 if i>=retries+1:
                     return (None, None)
+        return (None, None)
                 
     async def getJson(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> dict | None:
         def printErr():

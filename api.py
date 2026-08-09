@@ -285,7 +285,7 @@ class Sankaku:
         
         config = configs['video'] if mimet[1] == 'gif' else configs[mimet[0]]
         url = API_POSTS_URL if post else config['url']
-        fieldName = config['field']
+        fieldName = 'post[file]' if post else config['field']
         
         data = aiohttp.FormData()
         with open(File, 'rb') as f:
@@ -328,7 +328,7 @@ class Sankaku:
         resp = await self._ebaniyFile(File, headers, timeout=timeout, post=True, cdata=data)
 
         if resp is None:
-            logging.error(f'Failed to tag')
+            logging.error(f'Failed to post')
             return False
         return resp
 
@@ -346,7 +346,7 @@ if __name__ == '__main__':
         headers = sankaku.headers(token)
 
         # YOUR CODE
-        
+
         await sankaku.helper._session_close() # IMPORTANT!!! nu... ne sovsem
 
     asyncio.run(main())

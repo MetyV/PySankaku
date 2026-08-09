@@ -59,7 +59,7 @@ class ILoveShit:
             logging.error('I need auth(token or headers) for posting!!!')
             return False
 
-        if not tags: # 500 error. idk
+        if not tags:
             ttags = await self.tagMedia(File, token=token, headers=headers, timeout=timeout)
             if isinstance(ttags, bool):
                 logging.error('Failed to get tags automatically.')
@@ -77,11 +77,10 @@ if __name__ == '__main__':
     async def main():
         fp = ILoveShit()
 
-        tk = await fp.login('2', '1')
+        tk = await fp.login('login/mail', 'password')
 
         if isinstance(tk, bool) or isinstance(tk, tuple):
             return
-
 
         await fp.sankaku.helper._session_close()
         await fp.helper._session_close() # IMPORTANT!!! nu... ne sovsem
