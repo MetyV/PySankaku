@@ -1,11 +1,12 @@
 import asyncio
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from urllib.parse import urlparse
 
 import aiohttp
 
+from accountedit import AccountData
 from helper import Helper as hlp
 from endpoints import *
 import logging
@@ -212,24 +213,24 @@ class Sankaku:
         logging.info('Verification code resent successfully')
         return data
 
-    async def getAccountInfo(self, headers: dict, id: str = 'me', timeout: int = 10) -> dict | bool:
+    async def getAccountInfo(self, headers: dict, id: str = 'me', timeout: int = 10) -> Optional[AccountData]:
         data = await self.helper.getJson(f'{USERS_API_URL}/{id}', headers, timeout=timeout)
         if data is None:
             logging.error('Failed to get account info')
-            return False
+            return None
         user = data.get('user')
-        if not user:
-            logging.error('No user data in response')
-            return False
+        if not user or not isinstance(user, dict):
+            logging.error('Invalid user data in response')
+            return None
         logging.info('Account info retrieved successfully')
-        return user
+        return AccountData.model_validate(user)
 
-    async def setAccountInfo(self, headers: dict, id: str, update_data: dict, timeout: int = 10) -> dict | bool:
+    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: int = 10) -> dict | bool:
         '''
         Returns data like getAccountInfo
         here dohuya vozmojnogo but i'm too lazy to find it
         '''
-        payload = {"user": update_data}
+        payload = {"user": update_data.model_dump(exclude_none=True)}
         data = await self.helper.getJson(
             f'{USERS_API_URL}/{id}',
             headers,
