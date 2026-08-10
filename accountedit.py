@@ -5,14 +5,15 @@ class AccountData(BaseModel):
     '''
     Descriptions in future
     '''
-    id              : Optional[str]  = Field(None, description='')
-    name            : Optional[str]  = Field(None, description='')
-    display_name    : Optional[str]  = Field(None, description='')
-    level           : Optional[int]  = Field(None, description='')
-    email           : Optional[str]  = Field(None, description='')
-    filter_content  : Optional[bool] = Field(None, description='')
-    is_verified     : Optional[bool] = Field(None, description='')
-    favs_are_private: Optional[bool] = Field(None, description='')
+    id               : Optional[str]  = Field(None, description='')
+    name             : Optional[str]  = Field(None, description='User name')
+    display_name     : Optional[str]  = Field(None, description='[EDITABLE] Displayed name')
+    level            : Optional[int]  = Field(None, description='')
+    email            : Optional[str]  = Field(None, description='')
+    filter_content   : Optional[bool] = Field(None, description='[EDITABLE] Hide sensitive content')
+    is_verified      : Optional[bool] = Field(None, description='')
+    favs_are_private : Optional[bool] = Field(None, description='[EDITABLE] Keep favs and other activity private')
+    avatar_url       : Optional[str]  = Field(None, description='[EDITABLE] Not quite, but possible') # like https://s.sankakucomplex.com/a/{accoutnRealId}.webp
 
     hide_ads                  : Optional[bool]                 = Field(None, description='')
     subscription_level        : Optional[int]                  = Field(None, description='')
@@ -52,7 +53,6 @@ class AccountData(BaseModel):
     collection_vote_count     : Optional[int]                  = Field(None, description='')
     subscriptions             : Optional[list]                 = Field(None, description='')
     created_at                : Optional[str]                  = Field(None, description='')  # like "2023-07-29T19:49:19.319Z"
-    avatar_url                : Optional[str]                  = Field(None, description='')
     avatar_rating             : Optional[str]                  = Field(None, description='')
     post_upload_count         : Optional[int]                  = Field(None, description='')
     pool_upload_count         : Optional[int]                  = Field(None, description='')
