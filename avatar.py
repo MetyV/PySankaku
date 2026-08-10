@@ -94,4 +94,35 @@ await fetch("https://f.sankakucomplex.com/assets/crop_background.e8dd2bf6.webp",
     "mode": "cors"
 });
 
+
+
+
+
+!!!
+await fetch("https://sankakuapi.com/users/{userid}/avatar", {
+    "credentials": "include",
+    "headers": {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0",
+        "Accept": "application/vnd.sankaku.api+json;v=2",
+        "Accept-Language": "ru-RU,ru,en-US,en",
+        "Content-Type": "application/json",
+        "Client-Type": "non-premium",
+        "Platform": "web-app",
+        "Api-Version": "2",
+        "Obfuscate-Type": "tag,wiki,comment",
+        "Enable-New-Tag-Type": "true",
+        "Expiration-Policy": "reduced",
+        "Sec-GPC": "1",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+        "Authorization": "Bearer eyJ2ZPW8uMw",
+        "Priority": "u=0"
+    },
+    "referrer": "https://www.sankakucomplex.com/",
+    "body": "{\"post_id\":\"www\",\"left\":0.15026801724165195,\"right\":0.8710968309135357,\"top\":0,\"bottom\":0.949748743718593}",
+    "method": "PUT",
+    "mode": "cors"
+});
+
 '''
