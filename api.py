@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from accountedit import AccountData
+from avatar import AvatarModel
 from helper import Helper as hlp
 from endpoints import *
 import logging
@@ -32,10 +33,10 @@ class Sankaku:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.helper._session_close()
 
-    async def getRefreshToken(self, login: str, password: str, timeout: int = 10, headers: dict | None = None) -> str | bool:
+    async def getRefreshToken(self, login: str, password: str, timeout: int = 10, headers: dict | None = None) -> Optional[str]:
         def err():
             logging.error('Refresh token retrieval failed')
-            return False
+            return
 
         logging.info('Retrieving refresh token...')
 
@@ -59,10 +60,10 @@ class Sankaku:
         logging.info('Refresh token retrieved successfully')
         return token
 
-    async def exchangeToken(self, refToken: str, timeout: int = 10, headers: dict | None = None) -> str | bool:
+    async def exchangeToken(self, refToken: str, timeout: int = 10, headers: dict | None = None) -> Optional[str]:
         def err():
             logging.error('Token retrieval failed')
-            return False
+            return
 
         logging.info('Retrieving token...')
 
@@ -100,13 +101,13 @@ class Sankaku:
         return post_id
 
     QualityType = Literal[0, 1, 2, 3]
-    async def getPostFu(self, id, timeout: int = 10, headers: dict | None = None, quality: QualityType = 0) -> dict | bool:
+    async def getPostFu(self, id, timeout: int = 10, headers: dict | None = None, quality: QualityType = 0) -> Optional[dict]:
         '''
         quality: 0 - best possible, 1 - sample, 2 - fallback, 3 - file_url
         '''
         def err():
             logging.error(f'Failed to retrieve post {id} file URL with {quality} quality.')
-            return False
+            return
         
         if headers is None:
             headers = self._headers
@@ -133,10 +134,10 @@ class Sankaku:
             return err()
         return furl
 
-    async def getBookData(self, id, timeout: int = 10, headers: dict | None = None) -> dict | bool:
+    async def getBookData(self, id, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
         def err():
             logging.error(f'Failed to retrieve book {id} data.')
-            return False
+            return
         
         if headers is None:
             headers = self._headers
@@ -147,10 +148,10 @@ class Sankaku:
             return err()
         return data
 
-    async def getPostData(self, id, timeout: int = 10, headers: dict | None = None) -> dict | bool:
+    async def getPostData(self, id, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
         def err():
             logging.error(f'Failed to retrieve post {id} data.')
-            return False
+            return
         
         if headers is None:
             headers = self._headers
@@ -165,13 +166,13 @@ class Sankaku:
         return pd
 
     VoteScore = Literal[0, 1, 2, 3, 4, 5]
-    async def votePost(self, id, vote: VoteScore = 5, timeout: int = 10, headers: dict | None = None) -> dict | bool:
+    async def votePost(self, id, vote: VoteScore = 5, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
         '''
         0 - remove vote, 1-5 - vote score
         '''
         def err():
             logging.error(f'Failed to vote: {id}.')
-            return False
+            return
         
         if headers is None:
             headers = self._headers
@@ -184,7 +185,7 @@ class Sankaku:
             return err()
         return data
 
-    async def regAccount(self, login: str, password: str, mail: str, timeout: int = 10, headers: dict | None = None) -> dict | bool:
+    async def regAccount(self, login: str, password: str, mail: str, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
         json={
             "entry_query":"Y2xpZW50X2lkPXNhbmtha3Utd2ViLWFwcCZsYW5nPWVuJnJlZGlyZWN0X3VyaT1odHRwcyUzQSUyRiUyRnNhbmtha3UuYXBwJTJGc3NvJTJGY2FsbGJhY2smcmVzcG9uc2VfdHlwZT1jb2RlJnJvdXRlPXJlZ2lzdHJhdGlvbiZzY29wZT1vcGVuaWQmc3RhdGU9cmV0dXJuX3VyaSUzRGh0dHBzJTNBJTJGJTJGc2Fua2FrdS5hcHAlMkZhdXRoJnRoZW1lPXdoaXRlJnRvX3BheW1lbnRzPWZhbHNl",
             "user":{
@@ -201,15 +202,15 @@ class Sankaku:
         data = await self.helper.getJson(REGISTER_API_URL, headers, 'POST', json, timeout=timeout)
         if data is None:
             logging.error('Registration failed')
-            return False
+            return
         logging.info('Registration successful')
         return data
 
-    async def resendVerif(self, headers: dict, timeout: int = 10) -> dict | bool:
+    async def resendVerif(self, headers: dict, timeout: int = 10) -> Optional[dict]:
         data = await self.helper.getJson(API_REQUEST_RESEND_VERIFICATION, headers, 'POST', timeout=timeout)
         if data is None:
             logging.error('Failed to resend verification code')
-            return False
+            return
         logging.info('Verification code resent successfully')
         return data
 
@@ -225,7 +226,7 @@ class Sankaku:
         logging.info('Account info retrieved successfully')
         return AccountData.model_validate(user)
 
-    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: int = 10) -> dict | bool:
+    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: int = 10) -> Optional[dict]:
         '''
         Returns data like getAccountInfo
         here dohuya vozmojnogo but i'm too lazy to find it
@@ -241,32 +242,32 @@ class Sankaku:
 
         if data is None:
             logging.error('Failed to update account info')
-            return False
+            return
 
         user = data.get('user')
         if not user:
             logging.error('No user data in response after update')
-            return False
+            return
 
         logging.info('Account info updated successfully')
         return user
 
-    async def favor(self, headers: dict, id: str, book: bool, fav: bool = True, timeout: int = 10) -> dict | bool:
+    async def favor(self, headers: dict, id: str, book: bool, fav: bool = True, timeout: int = 10) -> Optional[dict]:
         url = f'{API_BOOKS_URL if book else API_POSTS_URL}/{id}/favorite'
 
         data = await self.helper.getJson(url, headers, 'POST' if fav else 'DELETE')
 
         if data is None:
             logging.error(f'Failed to fav {id}')
-            return False
+            return
         logging.info(f'Favorited {id}')
         return data
 
-    async def _ebaniyFile(self, File: Path | str, headers: dict, timeout: int = 60, post: bool = False, cdata: dict | None = None) -> dict | None:
+    async def _ebaniyFile(self, File: Path | str, headers: dict, timeout: int = 60, post: bool = False, cdata: dict | None = None) -> Optional[dict]:
         File = self.helper.resolve_path(File)
         if not File.exists():
             logging.error(f'File {File} does not exist')
-            return None
+            return
         
         mime = self.helper.get_mime(File)
         mimet = mime.split('/')
@@ -282,7 +283,7 @@ class Sankaku:
         }
         if mimet[0] not in configs:
             logging.error(f'Unsupported file type: {mime}')
-            return None
+            return
         
         config = configs['video'] if mimet[1] == 'gif' else configs[mimet[0]]
         url = API_POSTS_URL if post else config['url']
@@ -303,19 +304,19 @@ class Sankaku:
         resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout)
         return resp
         
-    async def tagMedia(self, File: Path | str, headers: dict, timeout: int = 60) -> list[dict] | bool:
+    async def tagMedia(self, File: Path | str, headers: dict, timeout: int = 60) -> Optional[list[dict]]:
         resp = await self._ebaniyFile(File, headers=headers, timeout=timeout)
         if resp is None:
             logging.error(f'Failed to tag')
-            return False
+            return
         tags = resp.get('tags')
         if not tags:
             logging.error(f'Failed to extract tags')
-            return False
+            return
 
         return tags
 
-    async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: int = 60) -> dict | bool:
+    async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: int = 60) -> Optional[dict]:
         tagss = json.dumps([{"name": tag} for tag in tags])
         data = {
             "post[parent_id]": parentID,
@@ -330,8 +331,24 @@ class Sankaku:
 
         if resp is None:
             logging.error(f'Failed to post')
-            return False
+            return
         return resp
+
+    async def changeAvatar(self, 
+                           userID: str | int, 
+                           postID: str, 
+                           token: str, 
+                           left: float = 0, 
+                           right: float = 0, 
+                           top: float = 0, 
+                           bottom: float = 0, 
+                           timeout: int = 10) -> Optional[dict]:
+        url = f'{USERS_API_URL}/{userID}/avatar'
+        
+        headers = self.headers(token)
+        json = AvatarModel(post_id=postID, left=left, right=right, top=top, bottom=bottom)
+
+        return await self.helper.getJson(url, headers, 'PUT', json.model_dump(), timeout=timeout)
 
 if __name__ == '__main__':
     async def main():
