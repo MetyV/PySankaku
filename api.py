@@ -417,7 +417,7 @@ class Sankaku:
         query = urlencode(params, safe=':+')
         url = f'{V2API_POSTS_URL}/keyset?{query}'
 
-        data = self.helper.getJson(url, headers, timeout=timeout)
+        data = await self.helper.getJson(url, headers, timeout=timeout)
         if data is None:
             return
         
