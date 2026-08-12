@@ -10,3 +10,4 @@ API_REQUEST_RESEND_VERIFICATION = f'{BASE_API_URL}/auth/request-validation'
 
 API_BOOKS_URL = f'{BASE_API_URL}/pools'
 API_POSTS_URL = f'{BASE_API_URL}/posts'
+API_COLLECTIONS_URL = f'{BASE_API_URL}/collections'

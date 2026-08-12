@@ -5,13 +5,7 @@ from typing import Optional
 
 from api import Sankaku as san
 from helper import Helper as hlp
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s | %(levelname)-8s | %(message)s',
-    datefmt='%H:%M:%S'
-)
+from helper import logger as logging
 
 class ILoveShit:
     def __init__(self):

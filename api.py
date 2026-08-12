@@ -6,17 +6,11 @@ from urllib.parse import urlparse
 
 import aiohttp
 
-from accountedit import AccountData
-from avatar import AvatarModel
+from models.accountedit import AccountData
+from models.avatar import AvatarModel
 from helper import Helper as hlp
+from helper import logger as logging
 from endpoints import *
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s | %(levelname)-8s | %(message)s',
-    datefmt='%H:%M:%S'
-)
 
 class Sankaku:
     '''
@@ -148,7 +142,7 @@ class Sankaku:
             return err()
         return data
 
-    async def getPostData(self, id, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
+    async def getPostData(self, id, timeout: int = 30, headers: dict | None = None) -> Optional[dict]:
         def err():
             logging.error(f'Failed to retrieve post {id} data.')
             return
@@ -349,6 +343,22 @@ class Sankaku:
         json = AvatarModel(post_id=postID, left=left, right=right, top=top, bottom=bottom)
 
         return await self.helper.getJson(url, headers, 'PUT', json.model_dump(), timeout=timeout)
+
+    async def getCollectionData(self, id, timeout: int = 30, headers: dict | None = None) -> Optional[dict]:
+        url = f'{API_COLLECTIONS_URL}/{id}'
+
+        if headers is None:
+            headers = self._headers
+
+        res = await self.helper.getJson(url, headers, timeout=timeout)
+
+        if res is None:
+            logging.error(f'Failed to retrieve collection {id} data.')
+            return
+
+        return res
+
+    # post search
 
 if __name__ == '__main__':
     async def main():

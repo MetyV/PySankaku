@@ -1,13 +1,18 @@
-import json
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlparse
 import aiohttp
 import puremagic
-from rich.console import Console
 from yarl import URL
 
-console = Console()
-
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)-8s | %(message)s',
+    datefmt='%H:%M:%S'
+)
+_logger = logging.getLogger(__name__)
+logger = _logger
 
 class Helper:
     session: aiohttp.ClientSession | None
@@ -34,7 +39,7 @@ class Helper:
         ttimeout = aiohttp.ClientTimeout(total=timeout)
         st = None
         def printErr(text):
-            console.print(f'[red]{text}: {st}[/red]')
+            logging.error(f'{text}: {st}')
             return (None, None)
         
         if self.session is None:
@@ -69,14 +74,15 @@ class Helper:
                     case 504:return printErr('Timeout')
                 return (r, st)
             except Exception as e:
-                console.print(f'[yellow]Request error: {i+1} try[/yellow]' if i<retries else f'[red]Request error: {e}[/red]')
-                if i>=retries+1:
+                if i < retries:
+                    logging.warning(f'Request error: attempt {i+1}/{retries} - {e}')
+                else:
+                    logging.error(f'Request failed after {retries} attempts: {e}')
                     return (None, None)
-        return (None, None)
                 
-    async def getJson(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> dict | None:
+    async def getJson(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> Optional[dict]:
         def printErr():
-            console.print(f'[red]Json data fetch failed[/red]')
+            logging.error('Json data fetch failed')
             return None
         
         resp, _ = await self.request(url, headers, method, json, data, timeout, retries, proxy)
@@ -87,7 +93,7 @@ class Helper:
         js = await resp.json()
         
         if js:
-            console.print('[green]Json data fetched[/green]')
+            logging.info('Json data fetched')
             return js
         
         return printErr()
