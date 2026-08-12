@@ -361,6 +361,38 @@ class Sankaku:
         return res
 
     # post search
+    async def searchPosts(self, q):
+        pass
+    '''
+    await fetch("https://sankakuapi.com/v2/posts/keyset?lang=en&default_threshold=3&hide_posts_in_books=in-larger-tags&limit=40&page=1&tags=order:quality+threshold:3+file_type:video+duration:0..60+fav:{favUser}+voted:{voteUser}+user:{whoPosted}+rating:e+date:2026-08-09T21:00..2026-08-15T21:00+extremely_large_filesize+Sex", {
+    "credentials": "include",
+    "headers": {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0",
+        "Accept": "application/vnd.sankaku.api+json;v=2",
+        "Accept-Language": "ru-RU,ru,en-US,en",
+        "Client-Type": "non-premium",
+        "Platform": "web-app",
+        "Api-Version": "2",
+        "Obfuscate-Type": "tag,wiki,comment",
+        "Enable-New-Tag-Type": "true",
+        "Expiration-Policy": "reduced",
+        "Sec-GPC": "1",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+        "Authorization": "Bearer eyJhbGciOiJIUe4ylhxJ19Mr6c"
+    },
+    "referrer": "https://www.sankakucomplex.com/",
+    "method": "GET",
+    "mode": "cors"
+});
+
+
+{"meta":{"next":"abedafbd7deba9b84954733f7db960c1","prev":"0e1f1c4ce91b4fd338bd92a3df750cbb","page_count":0},"data":[.......]}
+
+
+воооттт
+    '''
 
 if __name__ == '__main__':
     async def main():
