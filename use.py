@@ -72,6 +72,8 @@ class ILoveShit:
             tags.extend(extraTags)
             
         return await self.sankaku.postMedia(File, tags, headers, parentID, rating, timeout)
+    
+    #async def getPostData(self, id, headers, )
 
     #async def favorPost(self,) # in future
 
@@ -83,7 +85,6 @@ if __name__ == '__main__':
 
         if tk is None:
             return
-
 
         await fp.sankaku.helper._session_close()
         await fp.helper._session_close() # IMPORTANT!!! nu... ne sovsem

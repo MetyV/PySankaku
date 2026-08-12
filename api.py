@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 
 import aiohttp
 
+from models.bookdata import BookData
+from models.postdata import PostData
 from models.accountedit import AccountData
 from models.avatar import AvatarModel
 from helper import Helper as hlp
@@ -128,7 +130,7 @@ class Sankaku:
             return err()
         return furl
 
-    async def getBookData(self, id, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
+    async def getBookData(self, id, timeout: int = 10, headers: dict | None = None) -> Optional[BookData]:
         def err():
             logging.error(f'Failed to retrieve book {id} data.')
             return
@@ -140,9 +142,9 @@ class Sankaku:
         data = await self.helper.getJson(url, headers, timeout=timeout)
         if data is None:
             return err()
-        return data
+        return BookData.model_validate(data)
 
-    async def getPostData(self, id, timeout: int = 30, headers: dict | None = None) -> Optional[dict]:
+    async def getPostData(self, id, timeout: int = 30, headers: dict | None = None) -> Optional[PostData]:
         def err():
             logging.error(f'Failed to retrieve post {id} data.')
             return
@@ -157,7 +159,7 @@ class Sankaku:
         pd = data[0]
         if not pd:
             return err()
-        return pd
+        return PostData.model_validate(pd)
 
     VoteScore = Literal[0, 1, 2, 3, 4, 5]
     async def votePost(self, id, vote: VoteScore = 5, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
