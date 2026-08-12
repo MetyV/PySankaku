@@ -63,7 +63,7 @@ class Helper:
                     case 415:return printErr('Wrong data type')
                     case 422:return printErr('Unprocessable')
                     case 429:return printErr('Riched RP(D/M)')
-                    case 500:return printErr('Internal error')
+                    case 500:return printErr('Internal error') # if you see it more than 5 times, it'll be: real error, shitty code/args or near site reboot
                     case 502:return printErr('Bad gateway')
                     case 503:return printErr('Service unavailable')
                     case 504:return printErr('Timeout')

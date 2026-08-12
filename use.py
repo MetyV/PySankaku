@@ -90,6 +90,7 @@ if __name__ == '__main__':
         if tk is None:
             return
 
+
         await fp.sankaku.helper._session_close()
         await fp.helper._session_close() # IMPORTANT!!! nu... ne sovsem
 
