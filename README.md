@@ -28,5 +28,6 @@ In progress (almost)
 - [x] Auto-tagging
 - [x] Posting (upload)
 - [x] Avatar changer
+- [x] Post searching
 - [ ] Post downloading
 </details>

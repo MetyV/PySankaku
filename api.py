@@ -1,10 +1,12 @@
 import asyncio
+from datetime import datetime
 import json
 from pathlib import Path
 from typing import Literal, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import aiohttp
+from yarl import URL
 
 from models.bookdata import BookData
 from models.postdata import PostData
@@ -13,6 +15,7 @@ from models.avatar import AvatarModel
 from helper import Helper as hlp
 from helper import logger as logging
 from endpoints import *
+from models.searchdata import SearchData
 
 class Sankaku:
     '''
@@ -360,39 +363,65 @@ class Sankaku:
 
         return res
 
-    # post search
-    async def searchPosts(self, q):
-        pass
-    '''
-    await fetch("https://sankakuapi.com/v2/posts/keyset?lang=en&default_threshold=3&hide_posts_in_books=in-larger-tags&limit=40&page=1&tags=order:quality+threshold:3+file_type:video+duration:0..60+fav:{favUser}+voted:{voteUser}+user:{whoPosted}+rating:e+date:2026-08-09T21:00..2026-08-15T21:00+extremely_large_filesize+Sex", {
-    "credentials": "include",
-    "headers": {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0",
-        "Accept": "application/vnd.sankaku.api+json;v=2",
-        "Accept-Language": "ru-RU,ru,en-US,en",
-        "Client-Type": "non-premium",
-        "Platform": "web-app",
-        "Api-Version": "2",
-        "Obfuscate-Type": "tag,wiki,comment",
-        "Enable-New-Tag-Type": "true",
-        "Expiration-Policy": "reduced",
-        "Sec-GPC": "1",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "cross-site",
-        "Authorization": "Bearer eyJhbGciOiJIUe4ylhxJ19Mr6c"
-    },
-    "referrer": "https://www.sankakucomplex.com/",
-    "method": "GET",
-    "mode": "cors"
-});
+    def _add_param(self, parts: list, key: str, value: str | int | None, fmt: str = "{}:{}"):
+        if value is not None:
+            parts.append(fmt.format(key, value))
 
+    async def searchPosts(self,
+                          timeout             : int             = 30,
+                          headers             : dict     | None = None,
+                          tags                : list     | None = None,
+                          nextH               : str      | None = None,
+                          rating              : str      | None = None,
+                          order               : str      | None = None,
+                          threshold           : int             = 0,
+                          page                : int             = 1,
+                          file_type           : str      | None = None,
+                          voted_by            : str      | None = None,
+                          fav_by              : str      | None = None,
+                          posted_by           : str      | None = None,
+                          hide_posts_in_books : str      | None = None,
+                          date_start          : str      | None = None,   #
+                          date_end            : str      | None = None,   # in progress
+                          duration            : str      | None = None    #
+                          ) -> Optional[SearchData]:
+        if headers is None:
+            headers = self._headers
 
-{"meta":{"next":"abedafbd7deba9b84954733f7db960c1","prev":"0e1f1c4ce91b4fd338bd92a3df750cbb","page_count":0},"data":[.......]}
+        ttags = []
+        self._add_param(ttags, 'threshold', threshold)
+        self._add_param(ttags, 'file_type', file_type)
+        self._add_param(ttags, 'fav', fav_by)
+        self._add_param(ttags, 'voted', voted_by)
+        self._add_param(ttags, 'user', posted_by)
+        self._add_param(ttags, 'order', order)
+        self._add_param(ttags, 'rating', rating)
+        if tags:
+            ttags.extend(tags)
 
+        tg = "+".join(ttags) if ttags else ""
 
-воооттт
-    '''
+        params = {
+            'default_threshold': threshold,
+            'limit': 40,
+            'page': page,
+            'tags': tg
+        }
+        if hide_posts_in_books is not None:
+            params['hide_posts_in_books'] = hide_posts_in_books
+        if nextH is not None:
+            params['next'] = nextH
+
+        params = {k: v for k, v in params.items() if v is not None}
+
+        query = urlencode(params, safe=':+')
+        url = f'{V2API_POSTS_URL}/keyset?{query}'
+
+        data = self.helper.getJson(url, headers, timeout=timeout)
+        if data is None:
+            return
+        
+        return SearchData.model_validate(data)
 
 if __name__ == '__main__':
     async def main():
