@@ -27,6 +27,6 @@ In progress (almost)
 - [ ] Account editing
 - [x] Auto-tagging
 - [x] Posting (upload)
-- [ ] Avatar manager
+- [x] Avatar changer
 - [ ] Post downloading
 </details>
