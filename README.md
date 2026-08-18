@@ -29,5 +29,5 @@ In progress (almost)
 - [x] Posting (upload)
 - [x] Avatar changer
 - [x] Post searching
-- [ ] Post downloading
+- [x] Downloader
 </details>
