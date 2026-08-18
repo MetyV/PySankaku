@@ -8,7 +8,7 @@ from yarl import URL
 import logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s | %(levelname)-8s | %(message)s',
+    format='%(asctime)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
     datefmt='%H:%M:%S'
 )
 _logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ class Helper:
         return Path(parsed.path).name
     
     async def request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> tuple:
+        headers = headers.copy()
         ttimeout = aiohttp.ClientTimeout(total=timeout)
         st = None
         def printErr(text):

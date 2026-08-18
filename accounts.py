@@ -5,7 +5,7 @@ class accounts:
     def __init__(self) -> None:
         self.accF = Path('accounts.json')
 
-    async def addAcc(self, login: str | None = None, password: str | None = None, mail: str | None = None, token: str | None = None):
+    def addAcc(self, login: str | None = None, password: str | None = None, mail: str | None = None, token: str | None = None):
         if self.accF.exists():
             with open(self.accF, 'r') as f:
                 accounts = json.load(f)
@@ -36,7 +36,7 @@ class accounts:
         with open(self.accF, 'w') as f:
             json.dump(accounts, f, indent=2, ensure_ascii=False)
 
-    async def getAcc(self, all = False, login: str = '', mail: str = '', token: str = '') -> dict:
+    def getAcc(self, all = False, login: str = '', mail: str = '', token: str = '') -> dict:
         if not self.accF.exists():
             return {}
 

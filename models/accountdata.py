@@ -13,7 +13,7 @@ class AccountData(BaseModel):
     filter_content   : Optional[bool] = Field(None, description='[EDITABLE] Hide sensitive content')
     is_verified      : Optional[bool] = Field(None, description='')
     favs_are_private : Optional[bool] = Field(None, description='[EDITABLE] Keep favs and other activity private')
-    avatar_url       : Optional[str]  = Field(None, description='[EDITABLE] Not quite, but possible') # like https://s.sankakucomplex.com/a/{accoutnRealId}.webp
+    avatar_url       : Optional[str]  = Field(None, description='[EDITABLE]') # like https://s.sankakucomplex.com/a/{accoutnRealId}.webp
 
     hide_ads                  : Optional[bool]                 = Field(None, description='')
     subscription_level        : Optional[int]                  = Field(None, description='')
