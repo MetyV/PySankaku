@@ -43,7 +43,7 @@ class Helper:
     
     def get_filename_from_url(self, url: str) -> str:
         parsed = urlparse(url)
-        return Path(parsed.path).name
+        return Path(parsed.path).stem
     
     async def request(self, 
                       url: str, 
@@ -53,7 +53,8 @@ class Helper:
                       data: aiohttp.FormData | None = None, 
                       timeout: ClientTimeout | None = None,
                       retries: int = 1, 
-                      proxy = None) -> tuple[Optional[ClientResponse], Optional[int]]:
+                      proxy = None,
+                      ssl: bool = True) -> tuple[Optional[ClientResponse], Optional[int]]:
         headers = headers.copy()
         json = json.copy()
         st = None
@@ -68,7 +69,7 @@ class Helper:
 
         for i in range(1, retries+1):
             try:
-                r = await self.session.request(method, url, headers=headers, json=json, data=data, timeout=timeout, allow_redirects=True, proxy=proxy)
+                r = await self.session.request(method, url, headers=headers, json=json, data=data, timeout=timeout, allow_redirects=True, proxy=proxy, ssl=ssl)
                 st = r.status
                 newUrl = r.url
                 match st:
@@ -107,12 +108,13 @@ class Helper:
                       json: dict = {}, 
                       data: FormData | None = None, 
                       timeout: ClientTimeout | None = None, 
-                      retries: int = 1, proxy = None) -> Optional[dict]:
+                      retries: int = 1, proxy = None,
+                      ssl: bool = True) -> Optional[dict]:
         def printErr():
             logging.error('Json data fetch failed')
             return None
         
-        resp, _ = await self.request(url, headers, method, json, data, timeout, retries, proxy)
+        resp, _ = await self.request(url, headers, method, json, data, timeout, retries, proxy, ssl)
 
         if resp is None:
             return printErr()
