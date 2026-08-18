@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from aiohttp import ClientTimeout
 import json
 from pathlib import Path
 from typing import Literal, Optional
@@ -34,7 +34,7 @@ class Sankaku:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.helper._session_close()
 
-    async def getRefreshToken(self, login: str, password: str, timeout: int = 10, headers: dict | None = None) -> Optional[str]:
+    async def getRefreshToken(self, login: str, password: str, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[str]:
         def err():
             logging.error('Refresh token retrieval failed')
             return
@@ -60,7 +60,7 @@ class Sankaku:
 
         return token
 
-    async def exchangeToken(self, refToken: str, timeout: int = 10, headers: dict | None = None) -> Optional[str]:
+    async def exchangeToken(self, refToken: str, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[str]:
         def err():
             logging.error('Token retrieval failed')
             return
@@ -100,7 +100,7 @@ class Sankaku:
         return post_id
 
     QualityType = Literal[0, 1, 2, 3]
-    async def getPostFu(self, id, timeout: int = 10, headers: dict | None = None, quality: QualityType = 0) -> Optional[dict]:
+    async def getPostFu(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None, quality: QualityType = 0) -> Optional[dict]:
         '''
         quality: 0 - best possible, 1 - sample, 2 - fallback, 3 - file_url
         '''
@@ -133,7 +133,7 @@ class Sankaku:
             return err()
         return furl
 
-    async def getBookData(self, id, timeout: int = 10, headers: dict | None = None) -> Optional[BookData]:
+    async def getBookData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[BookData]:
         def err():
             logging.error(f'Failed to retrieve book {id} data.')
             return
@@ -147,7 +147,7 @@ class Sankaku:
             return err()
         return BookData.model_validate(data)
 
-    async def getPostData(self, id, timeout: int = 30, headers: dict | None = None) -> Optional[PostData]:
+    async def getPostData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[PostData]:
         def err():
             logging.error(f'Failed to retrieve post {id} data.')
             return
@@ -165,7 +165,7 @@ class Sankaku:
         return PostData.model_validate(pd)
 
     VoteScore = Literal[0, 1, 2, 3, 4, 5]
-    async def votePost(self, id, vote: VoteScore = 5, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
+    async def votePost(self, id, vote: VoteScore = 5, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[dict]:
         '''
         0 - remove vote, 1-5 - vote score
         '''
@@ -184,7 +184,7 @@ class Sankaku:
             return err()
         return data
 
-    async def regAccount(self, login: str, password: str, mail: str, timeout: int = 10, headers: dict | None = None) -> Optional[dict]:
+    async def regAccount(self, login: str, password: str, mail: str, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[dict]:
         json={
             "entry_query":"Y2xpZW50X2lkPXNhbmtha3Utd2ViLWFwcCZsYW5nPWVuJnJlZGlyZWN0X3VyaT1odHRwcyUzQSUyRiUyRnNhbmtha3UuYXBwJTJGc3NvJTJGY2FsbGJhY2smcmVzcG9uc2VfdHlwZT1jb2RlJnJvdXRlPXJlZ2lzdHJhdGlvbiZzY29wZT1vcGVuaWQmc3RhdGU9cmV0dXJuX3VyaSUzRGh0dHBzJTNBJTJGJTJGc2Fua2FrdS5hcHAlMkZhdXRoJnRoZW1lPXdoaXRlJnRvX3BheW1lbnRzPWZhbHNl",
             "user":{
@@ -205,7 +205,7 @@ class Sankaku:
         logging.info('Registration successful')
         return data
 
-    async def resendVerif(self, headers: dict, timeout: int = 10) -> Optional[dict]:
+    async def resendVerif(self, headers: dict, timeout: ClientTimeout | None = None) -> Optional[dict]:
         data = await self.helper.getJson(API_REQUEST_RESEND_VERIFICATION, headers, 'POST', timeout=timeout)
         if data is None:
             logging.error('Failed to resend verification code')
@@ -213,7 +213,7 @@ class Sankaku:
         logging.info('Verification code resent successfully')
         return data
 
-    async def getAccountInfo(self, headers: dict, id: str = 'me', timeout: int = 10) -> Optional[AccountData]:
+    async def getAccountInfo(self, headers: dict, id: str = 'me', timeout: ClientTimeout | None = None) -> Optional[AccountData]:
         data = await self.helper.getJson(f'{USERS_API_URL}/{id}', headers, timeout=timeout)
 
         if data is None:
@@ -228,7 +228,7 @@ class Sankaku:
         logging.info('Account info retrieved successfully')
         return AccountData.model_validate(user)
 
-    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: int = 10) -> Optional[AccountData]:
+    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: ClientTimeout | None = None) -> Optional[AccountData]:
         '''
         Returns data like getAccountInfo
         here dohuya vozmojnogo but i'm too lazy to find it
@@ -254,7 +254,7 @@ class Sankaku:
         logging.info('Account info updated successfully')
         return AccountData.model_validate(user)
 
-    async def favor(self, headers: dict, id: str, book: bool, fav: bool = True, timeout: int = 10) -> Optional[dict]:
+    async def favor(self, headers: dict, id: str, book: bool, fav: bool = True, timeout: ClientTimeout | None = None) -> Optional[dict]:
         url = f'{API_BOOKS_URL if book else API_POSTS_URL}/{id}/favorite'
 
         data = await self.helper.getJson(url, headers, 'POST' if fav else 'DELETE')
@@ -265,7 +265,7 @@ class Sankaku:
         logging.info(f'Favorited {id}')
         return data
 
-    async def _ebaniyFile(self, File: Path | str, headers: dict, timeout: int = 60, post: bool = False, cdata: dict | None = None) -> Optional[TaggingData]:
+    async def _ebaniyFile(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None, post: bool = False, cdata: dict | None = None) -> Optional[TaggingData]:
         File = self.helper.resolve_path(File)
         if not File.exists():
             logging.error(f'File {File} does not exist')
@@ -306,7 +306,7 @@ class Sankaku:
         resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout)
         return TaggingData.model_validate(resp)
         
-    async def tagMedia(self, File: Path | str, headers: dict, timeout: int = 60) -> Optional[TaggingData]:
+    async def tagMedia(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None) -> Optional[TaggingData]:
         resp = await self._ebaniyFile(File, headers=headers, timeout=timeout)
 
         if resp is None:
@@ -315,7 +315,7 @@ class Sankaku:
 
         return TaggingData.model_validate(resp)
 
-    async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: int = 60) -> Optional[TaggingData]:
+    async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: ClientTimeout | None = None) -> Optional[TaggingData]:
         tagss = json.dumps([{"name": tag} for tag in tags])
         data = {
             "post[parent_id]": parentID,
@@ -342,14 +342,14 @@ class Sankaku:
                            right: float = 0, 
                            top: float = 0, 
                            bottom: float = 0, 
-                           timeout: int = 10) -> Optional[dict]:
+                           timeout: ClientTimeout | None = None) -> Optional[dict]:
         url = f'{USERS_API_URL}/{userID}/avatar'
         
         json = AvatarModel(post_id=postID, left=left, right=right, top=top, bottom=bottom)
 
         return await self.helper.getJson(url, headers, 'PUT', json.model_dump(), timeout=timeout)
 
-    async def getCollectionData(self, id, timeout: int = 30, headers: dict | None = None) -> Optional[CollectionData]:
+    async def getCollectionData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[CollectionData]:
         url = f'{API_COLLECTIONS_URL}/{id}'
 
         if not headers:

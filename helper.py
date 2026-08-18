@@ -2,6 +2,16 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 import aiohttp
+from aiohttp import ClientTimeout, ClientResponse, ClientSession, FormData
+'''
+ClientTimeout(X(Y))
+  X              Y
+total          = 1 # aka global request timer
+connect        = 1 # wait X seconds for connect
+sock_read      = 1 # wait X seconds between chunks
+sock_connect   = 1 # like total
+'''
+
 import puremagic
 from yarl import URL
 
@@ -15,7 +25,7 @@ _logger = logging.getLogger(__name__)
 logger = _logger
 
 class Helper:
-    session: aiohttp.ClientSession | None
+    session: ClientSession | None
     def __init__(self):
         self.session = None
 
@@ -26,7 +36,7 @@ class Helper:
     async def _session_init(self):
         if self.session:
             await self._session_close()
-        self.session = aiohttp.ClientSession()
+        self.session = ClientSession()
 
     def resolve_path(self, path: Path | str) -> Path:
         return Path(path).resolve() if isinstance(path, str) else path.resolve()
@@ -35,9 +45,17 @@ class Helper:
         parsed = urlparse(url)
         return Path(parsed.path).name
     
-    async def request(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> tuple:
+    async def request(self, 
+                      url: str, 
+                      headers: dict, 
+                      method: str = 'GET', 
+                      json: dict = {}, 
+                      data: aiohttp.FormData | None = None, 
+                      timeout: ClientTimeout | None = None,
+                      retries: int = 1, 
+                      proxy = None) -> tuple[Optional[ClientResponse], Optional[int]]:
         headers = headers.copy()
-        ttimeout = aiohttp.ClientTimeout(total=timeout)
+        json = json.copy()
         st = None
         def printErr(text):
             logging.error(f'{text}: {st}')
@@ -50,7 +68,7 @@ class Helper:
 
         for i in range(1, retries+1):
             try:
-                r = await self.session.request(method, url, headers=headers, json=json, data=data, timeout=ttimeout, allow_redirects=True, proxy=proxy)
+                r = await self.session.request(method, url, headers=headers, json=json, data=data, timeout=timeout, allow_redirects=True, proxy=proxy)
                 st = r.status
                 newUrl = r.url
                 match st:
@@ -82,7 +100,14 @@ class Helper:
                     return (None, None)
         return (None, None)
                 
-    async def getJson(self, url: str, headers: dict, method: str = 'GET', json: dict | None = None, data: aiohttp.FormData | None = None, timeout: int = 30, retries: int = 1, proxy = None) -> Optional[dict]:
+    async def getJson(self, 
+                      url: str, 
+                      headers: dict, 
+                      method: str = 'GET', 
+                      json: dict = {}, 
+                      data: FormData | None = None, 
+                      timeout: ClientTimeout | None = None, 
+                      retries: int = 1, proxy = None) -> Optional[dict]:
         def printErr():
             logging.error('Json data fetch failed')
             return None

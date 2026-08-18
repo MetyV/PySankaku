@@ -7,6 +7,7 @@ from api import Sankaku as san
 from helper import Helper as hlp
 from helper import logger as logging
 from models.collectiondata import CollectionData
+from aiohttp import ClientTimeout
 from models.taggingdata import TaggingData
 
 class ILoveShit:
@@ -18,7 +19,7 @@ class ILoveShit:
         logging.error(message or 'I need token or headers!!!')
         return
 
-    async def login(self, login: str = '', password: str = '', token: str = '', timeout: int = 10, headers: dict = {}) ->  Optional[tuple[str, bool]]:
+    async def login(self, login: str = '', password: str = '', token: str = '', timeout: ClientTimeout | None = None, headers: dict = {}) ->  Optional[tuple[str, bool]]:
         newToken = False
         if token:
             headers = self.sankaku.headers(token)
@@ -39,7 +40,7 @@ class ILoveShit:
             return
         return (tok, newToken)
 
-    async def tagMedia(self, File: Path | str, token: str = '', headers: dict = {}, timeout: int = 60) -> Optional[list]:
+    async def tagMedia(self, File: Path | str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> Optional[list]:
         if token and not headers:
             headers = self.sankaku.headers(token)
 
@@ -58,7 +59,7 @@ class ILoveShit:
                         headers: dict = {}, 
                         parentID: str = '', 
                         rating: str = 'e', 
-                        timeout: int = 60, 
+                        timeout: ClientTimeout | None = None, 
                         tags: list = []) -> Optional[TaggingData]:
         if token and not headers:
             headers = self.sankaku.headers(token)
@@ -83,10 +84,10 @@ class ILoveShit:
             
         return res
 
-    async def downloadCollection(self, id: str, token: str = '', headers: dict = {}, timeout: int = 30) -> None:
+    async def downloadCollection(self, id: str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> None:
         return # sdelayu skoro
 
-    async def getCollectionPostsIDs(self, id: str, token: str = '', headers: dict = {}, timeout: int = 20) -> Optional[list[str]]:
+    async def getCollectionPostsIDs(self, id: str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> Optional[list[str]]:
         data = await self._collectionD(id, token, headers, timeout)
 
         if not data or not data.post_ids:
@@ -95,7 +96,7 @@ class ILoveShit:
         posts = [p for p in data.post_ids]
         return posts
 
-    async def _collectionD(self, id: str, token: str = '', headers: dict = {}, timeout: int = 20) -> Optional[CollectionData]:
+    async def _collectionD(self, id: str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> Optional[CollectionData]:
         if token and not headers:
             headers = self.sankaku.headers(token)
 
