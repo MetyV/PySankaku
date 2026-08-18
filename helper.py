@@ -29,6 +29,13 @@ class Helper:
     def __init__(self):
         self.session = None
 
+    async def __aenter__(self):
+        await self._session_init()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self._session_close()
+
     async def _session_close(self):
         if self.session:
             await self.session.close()

@@ -9,6 +9,13 @@ class Downloader:
     def __init__(self):
         self.helper = hlp()
 
+    async def __aenter__(self):
+        await self.helper._session_init()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb): # i pray it'll work
+        await self.helper._session_close()
+
     def getName(self, url: str) -> str:
         return self.helper.get_filename_from_url(url)
 
@@ -52,12 +59,18 @@ class Downloader:
                        mkdir: bool = True, 
                        if_exist: IF_EXIST = 'overwrite',
                        chunk_size: int = 1024):
+        def ret(type, val, msg = ''):
+            if msg:
+                getattr(logging, type)(msg)
+            return val
+        
         path = self.helper.resolve_path(path)
 
         if not path.exists():
             logging.error('I miss u... folder~')
             if not mkdir:
-                return
+                return ret('info', False)
+
             path.mkdir(parents=True, exist_ok=True)
             logging.info('Oh.. you there!')
 
@@ -74,8 +87,7 @@ class Downloader:
         if fpath.exists():
             match if_exist:
                 case 'nothing':
-                    logging.info('File already exist')
-                    return True
+                    return ret('info', True, 'File already exist')
                 case 'overwrite':
                     logging.info(f'RIP {fpath.name}')
                 case 'resume':
@@ -87,12 +99,10 @@ class Downloader:
         r, st = await self.helper.request(url, headers, 'GET', json, timeout=timeout, ssl=ssl)
 
         if st == 200 and mode == 'ab':
-            logging.info('Nope. No rangers here! Change exist mode to overwrite.')
-            return
+            return ret('info', False, 'Nope. No rangers here! Change exist mode to overwrite.')
         
         if st == 416:
-            logging.info(f'Server cannot satisfy this range(maybe already downloaded)')
-            return True
+            return ret('info', True, 'Server cannot satisfy this range(maybe already downloaded)')
 
         if r:
             with open(fpath, mode) as f:
@@ -101,8 +111,7 @@ class Downloader:
 
             if st in (200, 206):
                 logging.info(f'File downloaded: {fpath}')
-                return True
-            return False
+                return ret('info', True, f'File downloaded: {fpath}')
+            return ret('error', False, 'Failed to download')
         
-        logging.error('No response(try to renew your link)')
-        return False
+        return ret('error', False, 'No response(try to renew your link)')
