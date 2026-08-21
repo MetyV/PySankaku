@@ -1,14 +1,15 @@
 # in progress, idfc bout ts
 import asyncio
 from pathlib import Path
-from typing import Optional
+import random
+from typing import Literal, Optional
 
 from api import Sankaku as san
 from helper import Helper as hlp
 from helper import logger as logging
 from models.collectiondata import CollectionData
 from aiohttp import ClientTimeout
-from models.taggingdata import TaggingData
+from models.taggingdata import TaggingData, TagData
 
 class ILoveShit:
     def __init__(self):
@@ -40,7 +41,7 @@ class ILoveShit:
             return
         return (tok, newToken)
 
-    async def tagMedia(self, File: Path | str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> Optional[list]:
+    async def tagMedia(self, File: Path | str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> Optional[list[TagData]]:
         if token and not headers:
             headers = self.sankaku.headers(token)
 
@@ -58,7 +59,7 @@ class ILoveShit:
                         extraTags: list = [], 
                         headers: dict = {}, 
                         parentID: str = '', 
-                        rating: str = 'e', 
+                        rating: rating = 'e', 
                         timeout: ClientTimeout | None = None, 
                         tags: list = []) -> Optional[TaggingData]:
         if token and not headers:
@@ -105,6 +106,31 @@ class ILoveShit:
         
         data = await self.sankaku.getCollectionData(id, timeout, headers)
         return data
+
+    rating = Literal['s', 'q', 'e']
+    def getMediaRating(self, tags: list[TagData], forceE: bool = False) -> Optional[rating]:
+        r = None
+        for tag in tags:
+            match tag.id:
+                case '1QaEJ4zer9L':
+                    r='e'
+                case 'elR0EeLpMgK':
+                    r='q'
+                case 'GelR09GqMgK':
+                    r='s'
+                
+        MASK = {'lb8aJDKR2L1', '36dMpeqQaxj', 'QjXajQGM2P7'}
+        if forceE:
+            tag_ids = {tag.id for tag in tags}
+            r = 'e' if MASK.issubset(tag_ids) else r
+            '''
+            often q rating is not valid. here tags that often together, but such a "mask" can be wrong in special cases(e.g. only male on media)
+            1. (ID: lb8aJDKR2L1)
+            2. (ID: 36dMpeqQaxj)
+            3. (ID: QjXajQGM2P7)
+            '''
+        return r
+            
     
     #async def getPostData(self, id, headers, )
 
@@ -114,24 +140,35 @@ if __name__ == '__main__':
     async def main():
         fp = ILoveShit()
 
-        #tk = await fp.login('login/mail', 'password')
+        tk = await fp.login('login/email', 'pass')
 
-        #if tk is None:
-        #    return
-        #tk=tk[0]
+        if tk is None:
+            return
+        tk=tk[0]
 
-        #headers = fp.sankaku.headers(tk) # mb nado, chto bi vizivat sankaku functions directly(fp.sankaku....)
+        headers = fp.sankaku.headers(tk) # mb nado, chto bi vizivat sankaku functions directly(fp.sankaku....)
 
+        folder = Path("X")
 
-        # l = [
-        #     'path-to-file1'
-        #     ]
-        # sema = asyncio.Semaphore(2) # chtobi ne nagrujat set i ne lovit timeouts or 429. 2+ isn't stable
-        # async def post(q, tk):
-        #     async with sema:
-        #         await fp.postMedia(q, tk, ['tag1'])
+        l=[str(file) for file in folder.iterdir() if file.is_file()]
+        err=[]
+        
+        for post in l:
+            ttags = await fp.tagMedia(post, token=tk, headers=headers)
+            if ttags is None:
+                fp.__nihuyaNet(f'Failed to get tags. {post}')
+                err.append(post)
+                return
+            tags = [tag.name for tag in ttags]
+            rating = fp.getMediaRating(ttags, True)
+            if rating == 's':
+                rating = 'q' # optional
+            if not rating:
+                rating = 'e'
+            await fp.postMedia(post, tk, ['extratag'], tags=tags, rating=rating)
+            await asyncio.sleep(random.randrange(0,3))
 
-        # await asyncio.gather(*(post(q, tk) for q in l))
+        print(err)
 
         await fp.sankaku.helper._session_close()
         await fp.helper._session_close() # IMPORTANT!!! nu... ne sovsem

@@ -18,7 +18,7 @@ from yarl import URL
 import logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s',
+    format='%(asctime)s | %(levelname)s | %(filename)s:%(funcName)s:%(lineno)d | %(message)s',
     datefmt='%H:%M:%S'
 )
 _logger = logging.getLogger(__name__)
@@ -56,14 +56,14 @@ class Helper:
                       url: str, 
                       headers: dict, 
                       method: str = 'GET', 
-                      json: dict = {}, 
+                      json: dict | None = None, 
                       data: aiohttp.FormData | None = None, 
                       timeout: ClientTimeout | None = None,
                       retries: int = 1, 
                       proxy = None,
                       ssl: bool = True) -> tuple[Optional[ClientResponse], Optional[int]]:
         headers = headers.copy()
-        json = json.copy()
+        json = json.copy() if json else None
         st = None
         def printErr(text):
             logging.error(f'{text}: {st}')

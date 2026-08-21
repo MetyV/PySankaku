@@ -120,4 +120,7 @@ await fetch("https://www.idolcomplex.com/email-verification?code={{{!!!NOT BEARE
 
 
 I THINK... IT'S THE SAME
+
+faccount settings 100% same
+but endpoint i.sankakuapi.com
 '''
