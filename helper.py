@@ -82,7 +82,7 @@ class Helper:
                 match st:
                     case 404: return printErr(f'No page')
                     case (301, 302, 303, 307, 308):
-                        console.print(f'[yellow]Redirect: {st}[/yellow]')
+                        logging.info(f'Redirect: {st}')
                         if not isinstance(newUrl, URL): # ne rabotaet navernoe, no vsegda dolzhno byt URL
                             return printErr('No redirect url extracted')
                         return await self.request(newUrl, headers, method, json, data, timeout, retries, proxy)
