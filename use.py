@@ -5,16 +5,17 @@ import random
 from typing import Literal, Optional
 
 from api import Sankaku as san
+import downloader
 from helper import Helper as hlp
 from helper import logger as logging
 from models.collectiondata import CollectionData
 from aiohttp import ClientTimeout
-from models.taggingdata import TaggingData, TagData
+from models.taggingdata import TagType, TaggingData, TagData
 
 class ILoveShit:
-    def __init__(self):
-        self.sankaku = san()
-        self.helper = hlp()
+    def __init__(self, idol: bool = False, stack: bool = False):
+        self.sankaku = san(idol, stack)
+        self.helper = hlp(stack)
 
     def __nihuyaNet(self, message = None) -> None:
         logging.error(message or 'I need token or headers!!!')
@@ -130,6 +131,15 @@ class ILoveShit:
             3. (ID: QjXajQGM2P7)
             '''
         return r
+
+    def prepareTags(self, tags: list[TagData]) -> Optional[list[TagData]]:
+        excl = {
+            '8yrxk0lnaE6' # "Useless tags", moders dont like this tag
+            }
+
+        pt: list[TagData] = [tag for tag in tags if tag.id not in excl]
+
+        return pt
             
     
     #async def getPostData(self, id, headers, )
@@ -138,7 +148,7 @@ class ILoveShit:
 
 if __name__ == '__main__':
     async def main():
-        fp = ILoveShit()
+        fp = ILoveShit(True)
 
         tk = await fp.login('login/email', 'pass')
 
@@ -146,9 +156,10 @@ if __name__ == '__main__':
             return
         tk=tk[0]
 
-        headers = fp.sankaku.headers(tk) # mb nado, chto bi vizivat sankaku functions directly(fp.sankaku....)
+        headers = fp.sankaku.headers(tk)
 
         folder = Path("X")
+        extratags = ['']
 
         l=[str(file) for file in folder.iterdir() if file.is_file()]
         err=[]
@@ -165,10 +176,8 @@ if __name__ == '__main__':
                 rating = 'q' # optional
             if not rating:
                 rating = 'e'
-            await fp.postMedia(post, tk, ['extratag'], tags=tags, rating=rating)
+            await fp.postMedia(post, tk, extratags, tags=tags, rating=rating)
             await asyncio.sleep(random.randrange(0,3))
-
-        print(err)
 
         await fp.sankaku.helper._session_close()
         await fp.helper._session_close() # IMPORTANT!!! nu... ne sovsem

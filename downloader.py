@@ -6,8 +6,8 @@ from aiohttp import ClientTimeout
 from helper import Helper as hlp
 
 class Downloader:
-    def __init__(self):
-        self.helper = hlp()
+    def __init__(self, stack: bool = False):
+        self.helper = hlp(stack)
 
     async def __aenter__(self):
         await self.helper._session_init()
@@ -59,9 +59,10 @@ class Downloader:
                        mkdir: bool = True, 
                        if_exist: IF_EXIST = 'overwrite',
                        chunk_size: int = 1024):
-        def ret(type, val, msg = ''):
+        async def ret(type, val, msg = ''):
             if msg:
                 getattr(logging, type)(msg)
+            await self.helper._session_close()
             return val
         
         path = self.helper.resolve_path(path)
@@ -69,12 +70,12 @@ class Downloader:
         if not path.exists():
             logging.error('I miss u... folder~')
             if not mkdir:
-                return ret('info', False)
+                return await ret('info', False)
 
             path.mkdir(parents=True, exist_ok=True)
             logging.info('Oh.. you there!')
 
-        name = self.helper.resolve_path(name)
+        name = Path(name)
 
         name = name.with_suffix(f'.{extension}') if extension else name
 
@@ -87,7 +88,7 @@ class Downloader:
         if fpath.exists():
             match if_exist:
                 case 'nothing':
-                    return ret('info', True, 'File already exist')
+                    return await ret('info', True, 'File already exist')
                 case 'overwrite':
                     logging.info(f'RIP {fpath.name}')
                 case 'resume':
@@ -99,10 +100,10 @@ class Downloader:
         r, st = await self.helper.request(url, headers, 'GET', json, timeout=timeout, ssl=ssl)
 
         if st == 200 and mode == 'ab':
-            return ret('info', False, 'Nope. No rangers here! Change exist mode to overwrite.')
+            return await ret('info', False, 'Nope. No rangers here! Change exist mode to overwrite.')
         
         if st == 416:
-            return ret('info', True, 'Server cannot satisfy this range(maybe already downloaded)')
+            return await ret('info', True, 'Server cannot satisfy this range(maybe already downloaded)')
 
         if r:
             with open(fpath, mode) as f:
@@ -111,7 +112,7 @@ class Downloader:
 
             if st in (200, 206):
                 logging.info(f'File downloaded: {fpath}')
-                return ret('info', True, f'File downloaded: {fpath}')
-            return ret('error', False, 'Failed to download')
+                return await ret('info', True, f'File downloaded: {fpath}')
+            return await ret('error', False, 'Failed to download')
         
-        return ret('error', False, 'No response(try to renew your link)')
+        return await ret('error', False, 'No response(try to renew your link)')

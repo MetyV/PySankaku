@@ -2,6 +2,8 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
+from models.taggingdata import TagData
+
 class PostData(BaseModel)           : 
       id                            : Optional[str] = Field(None, description="")
       rating                        : Optional[str] = Field(None, description="")
@@ -51,3 +53,9 @@ class PostData(BaseModel)           :
       subtitles                     : Optional[list] = Field(None, description="")
       audios                        : Optional[list] = Field(None, description="")
       gif_preview_url               : Optional[str] = Field(None, description="")
+
+class PostTagsData(BaseModel):
+      success: Optional[bool]           = Field(None, description="")
+      data    : Optional[list[TagData]] = Field(None, description="")
+      total  : Optional[int]            = Field(None, description="")
+      page   : Optional[int]            = Field(None, description="")

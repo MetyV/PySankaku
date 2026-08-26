@@ -26,8 +26,9 @@ logger = _logger
 
 class Helper:
     session: ClientSession | None
-    def __init__(self):
+    def __init__(self, stack: bool = False):
         self.session = None
+        self.stack = stack
 
     async def __aenter__(self):
         await self._session_init()
@@ -46,11 +47,32 @@ class Helper:
         self.session = ClientSession()
 
     def resolve_path(self, path: Path | str) -> Path:
-        return Path(path).resolve() if isinstance(path, str) else path.resolve()
+        return Path(path).resolve()
     
     def get_filename_from_url(self, url: str) -> str:
         parsed = urlparse(url)
         return Path(parsed.path).stem
+
+    def _stack(self, 
+                method: str, 
+                url: str, 
+                headers: dict = {}, 
+                json: dict | None = None, 
+                data = None):
+        
+        logging.info("─ REQUEST ─")
+        logging.info(f"│ Method: {method}")
+        logging.info(f"│ URL: {url}")
+        if headers:
+            hdrs = headers.copy()
+            logging.info(f"│ Headers: {hdrs}")
+        if json:
+            logging.info(f"│ JSON: {json}")
+        
+        if data:
+            logging.info(f"│ Data: {data}")
+        
+        logging.info("───────────────────────────────────────")
     
     async def request(self, 
                       url: str, 
@@ -64,6 +86,10 @@ class Helper:
                       ssl: bool = True) -> tuple[Optional[ClientResponse], Optional[int]]:
         headers = headers.copy()
         json = json.copy() if json else None
+
+        if self.stack:
+            self._stack(method, url, headers, json, data)
+
         st = None
         def printErr(text):
             logging.error(f'{text}: {st}')
