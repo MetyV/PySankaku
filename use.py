@@ -4,8 +4,8 @@ from pathlib import Path
 import random
 from typing import Literal, Optional
 
-from api import Sankaku as san
-import downloader
+from api import Sankaku
+from downloader import Downloader
 from helper import Helper as hlp
 from helper import logger as logging
 from models.collectiondata import CollectionData
@@ -14,11 +14,11 @@ from models.taggingdata import TagType, TaggingData, TagData
 
 class ILoveShit:
     def __init__(self, idol: bool = False, stack: bool = False):
-        self.sankaku = san(idol, stack)
+        self.sankaku = Sankaku(idol, stack)
         self.helper = hlp(stack)
 
-    def __nihuyaNet(self, message = None) -> None:
-        logging.error(message or 'I need token or headers!!!')
+    def __nihuyaNet(self, message) -> None:
+        logging.error(message)
         return
 
     async def login(self, login: str = '', password: str = '', token: str = '', timeout: ClientTimeout | None = None, headers: dict = {}) ->  Optional[tuple[str, bool]]:
@@ -43,11 +43,7 @@ class ILoveShit:
         return (tok, newToken)
 
     async def tagMedia(self, File: Path | str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> Optional[list[TagData]]:
-        if token and not headers:
-            headers = self.sankaku.headers(token)
-
-        if not headers:
-            return self.__nihuyaNet()
+        headers = self._chckTK(headers, token)
 
         res = await self.sankaku.tagMedia(File, headers, timeout)
         if not res or not res.tags:
@@ -58,16 +54,12 @@ class ILoveShit:
     async def postMedia(self, File: Path | str,
                         token: str = '', 
                         extraTags: list = [], 
-                        headers: dict = {}, 
+                        headers: dict | None = None, 
                         parentID: str = '', 
                         rating: rating = 'e', 
                         timeout: ClientTimeout | None = None, 
                         tags: list = []) -> Optional[TaggingData]:
-        if token and not headers:
-            headers = self.sankaku.headers(token)
-
-        if not headers:
-            return self.__nihuyaNet()
+        headers = self._chckTK(headers, token)
 
         if not tags:
             ttags = await self.tagMedia(File, token=token, headers=headers, timeout=timeout)
@@ -86,11 +78,44 @@ class ILoveShit:
             
         return res
 
-    async def downloadCollection(self, id: str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> None:
-        return # sdelayu skoro
+    async def downloadCollection(self, 
+                           url: str, 
+                           token: str = '', 
+                           headers: dict = {}, 
+                           quality: Sankaku.QualityType = 0, 
+                           path: Path | str = '', 
+                           name: Path | str = '', 
+                           extension: bool = True, 
+                           ssl: bool = True,  
+                           json: dict = {},
+                           mkdir: bool = True,
+                           if_exist: Downloader.IF_EXIST = 'overwrite',
+                           chunk_size: int = 1024,
+                           suffix: str = '',
+                           timeout: ClientTimeout | None = None,
+                           ignore_fails: bool = True,
+                           custom_indexes: list[int] = []) -> Optional[bool]:
+        headers = self._chckTK(headers, token)
 
-    async def getCollectionPostsIDs(self, id: str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> Optional[list[str]]:
-        data = await self._collectionD(id, token, headers, timeout)
+        IDS = await self.getCollectionPostsIDs(url, token, headers, timeout)
+
+        if not IDS:
+            return
+
+        for i in custom_indexes if custom_indexes else range(len(IDS)):
+            a = await self.downloadPost(IDS[i], token, headers, quality, path, name, extension, ssl, json, mkdir, if_exist, chunk_size, suffix, f'{i} ', timeout)
+            if not a:
+                self.__nihuyaNet(f'Failed to download {i} index with id {IDS[i]}')
+                if not ignore_fails:
+                    return
+        return True
+
+    async def getCollectionPostsIDs(self, url: str, token: str = '', headers: dict | None = None, timeout: ClientTimeout | None = None) -> Optional[list[str]]:
+        headers = self._chckTK(headers, token)
+
+        id = self.sankaku.getPostID(url)
+        
+        data = await self.sankaku.getCollectionData(id, timeout, headers)
 
         if not data or not data.post_ids:
             return
@@ -98,15 +123,11 @@ class ILoveShit:
         posts = [p for p in data.post_ids]
         return posts
 
-    async def _collectionD(self, id: str, token: str = '', headers: dict = {}, timeout: ClientTimeout | None = None) -> Optional[CollectionData]:
-        if token and not headers:
-            headers = self.sankaku.headers(token)
-
+    def _chckTK(self, headers: dict | None = None, token: str | None = None) -> dict:
         if not headers:
-            return self.__nihuyaNet()
-        
-        data = await self.sankaku.getCollectionData(id, timeout, headers)
-        return data
+            headers = self.sankaku.headers(token) if token else self.sankaku._headers.copy()
+
+        return headers
 
     rating = Literal['s', 'q', 'e']
     def getMediaRating(self, tags: list[TagData], forceE: bool = False) -> Optional[rating]:
@@ -140,7 +161,53 @@ class ILoveShit:
         pt: list[TagData] = [tag for tag in tags if tag.id not in excl]
 
         return pt
-            
+
+    async def downloadPost(self, 
+                           url: str, 
+                           token: str = '', 
+                           headers: dict = {}, 
+                           quality: Sankaku.QualityType = 0, 
+                           path: Path | str = '', 
+                           name: Path | str = '', 
+                           extension: bool = True, 
+                           ssl: bool = True,  
+                           json: dict = {},
+                           mkdir: bool = True,
+                           if_exist: Downloader.IF_EXIST = 'overwrite',
+                           chunk_size: int = 1024,
+                           suffix: str = '',
+                           prefix: str = '',
+                           timeout: ClientTimeout | None = None) -> Optional[bool]:
+        headers = self._chckTK(headers, token)
+
+        postID = self.sankaku.getPostID(url) if url.startswith(('http://', 'https://')) else url
+
+        dlr = Downloader()
+
+        if not name:
+            name = self.helper.get_filename_from_url(url)
+        name = Path(name)
+        name = Path(prefix + name.stem + suffix)
+
+        pfu = await self.sankaku.getPostFu(postID, timeout, headers, quality)
+        if not pfu:
+            return
+
+        ext = Path(self.helper.get_filename_from_url(pfu, extension)).suffix[1:] # downloader automatically adds '.'
+        
+        return await dlr.download(
+            pfu,
+            path,
+            name,
+            ext,
+            ssl,
+            headers,
+            json,
+            timeout,
+            mkdir,
+            if_exist,
+            chunk_size
+        )
     
     #async def getPostData(self, id, headers, )
 
@@ -150,34 +217,34 @@ if __name__ == '__main__':
     async def main():
         fp = ILoveShit(True)
 
-        tk = await fp.login('login/email', 'pass')
+        # tk = await fp.login('login/email', 'pass')
 
-        if tk is None:
-            return
-        tk=tk[0]
+        # if tk is None:
+        #     return
+        # tk=tk[0]
 
-        headers = fp.sankaku.headers(tk)
+        # headers = fp.sankaku.headers(tk)
 
-        folder = Path("X")
-        extratags = ['']
+        # folder = Path("X")
+        # extratags = ['']
 
-        l=[str(file) for file in folder.iterdir() if file.is_file()]
-        err=[]
+        # l=[str(file) for file in folder.iterdir() if file.is_file()]
+        # err=[]
         
-        for post in l:
-            ttags = await fp.tagMedia(post, token=tk, headers=headers)
-            if ttags is None:
-                fp.__nihuyaNet(f'Failed to get tags. {post}')
-                err.append(post)
-                return
-            tags = [tag.name for tag in ttags]
-            rating = fp.getMediaRating(ttags, True)
-            if rating == 's':
-                rating = 'q' # optional
-            if not rating:
-                rating = 'e'
-            await fp.postMedia(post, tk, extratags, tags=tags, rating=rating)
-            await asyncio.sleep(random.randrange(0,3))
+        # for post in l:
+        #     ttags = await fp.tagMedia(post, token=tk, headers=headers)
+        #     if ttags is None:
+        #         fp.__nihuyaNet(f'Failed to get tags. {post}')
+        #         err.append(post)
+        #         return
+        #     tags = [tag.name for tag in ttags]
+        #     rating = fp.getMediaRating(ttags, True)
+        #     if rating == 's':
+        #         rating = 'q' # optional
+        #     if not rating:
+        #         rating = 'e'
+        #     await fp.postMedia(post, tk, extratags, tags=tags, rating=rating)
+        #     await asyncio.sleep(random.randrange(0,3))
 
         await fp.sankaku.helper._session_close()
         await fp.helper._session_close() # IMPORTANT!!! nu... ne sovsem

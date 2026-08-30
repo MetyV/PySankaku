@@ -49,9 +49,9 @@ class Downloader:
     IF_EXIST = Literal['nothing', 'overwrite', 'resume']
     async def download(self, 
                        url: str, 
-                       path: Path | str, 
-                       name: Path | str,
-                       extension: str = '', # for Windows kids who can't live without .exe and proprietary software
+                       path: Path | str = '', 
+                       name: Path | str = '',
+                       extension: Path | str = '', # for Windows kids who can't live without .exe and proprietary software
                        ssl: bool = True,
                        headers: dict = {}, 
                        json: dict = {}, 

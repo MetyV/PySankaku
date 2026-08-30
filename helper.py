@@ -49,8 +49,10 @@ class Helper:
     def resolve_path(self, path: Path | str) -> Path:
         return Path(path).resolve()
     
-    def get_filename_from_url(self, url: str) -> str:
+    def get_filename_from_url(self, url: str, extension: bool = False) -> str:
         parsed = urlparse(url)
+        if extension:
+            return parsed.path
         return Path(parsed.path).stem
 
     def _stack(self, 

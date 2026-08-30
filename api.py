@@ -96,6 +96,13 @@ class Sankaku(Endpoints):
         return headers
 
     def getPostID(self, url: str) -> str:
+        '''
+        works with:
+        Posts
+        Collections
+        Books
+        ...?
+        '''
         parsed = urlparse(url).path
         post_id = parsed.split('/')[-1]
         return post_id
