@@ -10,16 +10,32 @@ from helper import Helper as hlp
 from helper import logger as logging
 from models.collectiondata import CollectionData
 from aiohttp import ClientTimeout
+from models.registerdata import RegisterData
 from models.taggingdata import TagType, TaggingData, TagData
 
 class ILoveShit:
     def __init__(self, idol: bool = False, stack: bool = False):
         self.sankaku = Sankaku(idol, stack)
         self.helper = hlp(stack)
+        self.i = False
 
     def __nihuyaNet(self, message) -> None:
         logging.error(message)
         return
+
+    async def __aenter__(self):
+        await self.sankaku.__aenter__()
+        await self.helper.__aenter__()
+        self._i = True
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._i:
+            await self.helper.__aexit__(exc_type, exc_val, exc_tb)
+            await self.sankaku.__aexit__(exc_type, exc_val, exc_tb)
+
+    async def register(self, login: str, password: str, mail: str, timeout: ClientTimeout | None = None, headers: dict = {}) -> Optional[RegisterData]:
+        return await self.sankaku.regAccount(login, password, mail, timeout, headers)
 
     async def login(self, login: str = '', password: str = '', token: str = '', timeout: ClientTimeout | None = None, headers: dict = {}) ->  Optional[tuple[str, bool]]:
         newToken = False
@@ -78,50 +94,107 @@ class ILoveShit:
             
         return res
 
+    CollectionDlMode = Literal['post', 'pool', 'series']
     async def downloadCollection(self, 
-                           url: str, 
-                           token: str = '', 
-                           headers: dict = {}, 
-                           quality: Sankaku.QualityType = 0, 
-                           path: Path | str = '', 
-                           name: Path | str = '', 
-                           extension: bool = True, 
-                           ssl: bool = True,  
-                           json: dict = {},
-                           mkdir: bool = True,
-                           if_exist: Downloader.IF_EXIST = 'overwrite',
-                           chunk_size: int = 1024,
-                           suffix: str = '',
-                           timeout: ClientTimeout | None = None,
-                           ignore_fails: bool = True,
-                           custom_indexes: list[int] = []) -> Optional[bool]:
+                                url: str, 
+                                dlMode: CollectionDlMode = 'post',
+                                token: str = '', 
+                                headers: dict = {}, 
+                                quality: Sankaku.QualityType = 0, 
+                                path: Path | str = '', 
+                                name: Path | str = '', 
+                                extension: bool = True, 
+                                ssl: bool = True,  
+                                json: dict = {},
+                                mkdir: bool = True,
+                                if_exist: Downloader.IF_EXIST = 'overwrite',
+                                chunk_size: int = 1024,
+                                suffix: str = '',
+                                timeout: ClientTimeout | None = None,
+                                ignore_fails: bool = True,
+                                custom_indexes: list[int] = []) -> Optional[bool]:
         headers = self._chckTK(headers, token)
 
-        IDS = await self.getCollectionPostsIDs(url, token, headers, timeout)
+        sts = {
+            'post': self._gEPosts,
+            'pool': self._gEPools,
+            'series': self._gESeries
+        }
 
-        if not IDS:
+        path = Path(path)
+
+        data = await self._gColDat(url, token, headers, timeout)
+        if not data:
             return
 
-        for i in custom_indexes if custom_indexes else range(len(IDS)):
-            a = await self.downloadPost(IDS[i], token, headers, quality, path, name, extension, ssl, json, mkdir, if_exist, chunk_size, suffix, f'{i} ', timeout)
-            if not a:
-                self.__nihuyaNet(f'Failed to download {i} index with id {IDS[i]}')
-                if not ignore_fails:
-                    return
-        return True
-
-    async def getCollectionPostsIDs(self, url: str, token: str = '', headers: dict | None = None, timeout: ClientTimeout | None = None) -> Optional[list[str]]:
-        headers = self._chckTK(headers, token)
-
-        id = self.sankaku.getPostID(url)
-        
-        data = await self.sankaku.getCollectionData(id, timeout, headers)
-
-        if not data or not data.post_ids:
+        st = sts.get(dlMode)
+        if not st:
             return
         
+        TIDS = await st(url, token, headers, timeout)
+        if not TIDS:
+            return
+        
+        async def ddl(IDS, tpath):
+            for i in custom_indexes if custom_indexes else range(len(IDS)):
+                a = await self.downloadPost(IDS[i], token, headers, quality, tpath, name, extension, ssl, json, mkdir, if_exist, chunk_size, suffix, f'{i} ', timeout)
+                if not a:
+                    self.__nihuyaNet(f'Failed to download {i} index with id {IDS[i]}')
+                    if not ignore_fails:
+                        return
+            return True
+
+        if dlMode == 'pool':
+            a = []
+            for pool, IDS in TIDS:
+                a.append(await ddl(IDS, path/Path(pool)))
+            return all(a)
+        return await ddl(TIDS, path)
+
+    async def _gEPosts(self, url: str, token: str = '', headers: dict | None = None, timeout: ClientTimeout | None = None) -> Optional[list[str]]:
+        r = await self._gColDat(url, token, headers, timeout)
+        if not r:
+            return
+        headers, data = r
+        if not data.post_ids:
+            return
         posts = [p for p in data.post_ids]
         return posts
+
+    async def _gEPools(self, url: str, token: str = '', headers: dict | None = None, timeout: ClientTimeout | None = None) -> Optional[dict]:
+        r = await self._gColDat(url, token, headers, timeout)
+        if not r:
+            return
+        headers, data = r
+        if not data.pool_ids:
+            return
+        pools = [p for p in data.pool_ids]
+        data={}
+        for pool in pools:
+            p = await self.sankaku.getBookData(pool, timeout, headers)
+            if p and p.posts:
+                data[p.name] = [ps.id for ps in p.posts]
+        return data
+
+    async def _gESeries(self, url: str, token: str = '', headers: dict | None = None, timeout: ClientTimeout | None = None) -> Optional[list[str]]:
+            r = await self._gColDat(url, token, headers, timeout)
+            if not r:
+                return
+            headers, data = r
+            if not data.series_ids:
+                return
+            series = [p for p in data.series_ids]
+            # in future maybe
+            return
+            return posts
+
+    async def _gColDat(self, url: str, token: str = '', headers: dict | None = None, timeout: ClientTimeout | None = None) -> Optional[tuple[dict, CollectionData]]:
+        headers = self._chckTK(headers, token)
+        id = self.sankaku.getPostID(url)
+        data = await self.sankaku.getCollectionData(id, timeout, headers)
+        if not data:
+            return
+        return (headers, data)
 
     def _chckTK(self, headers: dict | None = None, token: str | None = None) -> dict:
         if not headers:
@@ -182,8 +255,6 @@ class ILoveShit:
 
         postID = self.sankaku.getPostID(url) if url.startswith(('http://', 'https://')) else url
 
-        dlr = Downloader()
-
         if not name:
             name = self.helper.get_filename_from_url(url)
         name = Path(name)
@@ -194,20 +265,21 @@ class ILoveShit:
             return
 
         ext = Path(self.helper.get_filename_from_url(pfu, extension)).suffix[1:] # downloader automatically adds '.'
-        
-        return await dlr.download(
-            pfu,
-            path,
-            name,
-            ext,
-            ssl,
-            headers,
-            json,
-            timeout,
-            mkdir,
-            if_exist,
-            chunk_size
-        )
+
+        async with Downloader() as dlr:
+            return await dlr.download(
+                pfu,
+                path,
+                name,
+                ext,
+                ssl,
+                headers,
+                json,
+                timeout,
+                mkdir,
+                if_exist,
+                chunk_size
+            )
     
     #async def getPostData(self, id, headers, )
 
@@ -245,8 +317,5 @@ if __name__ == '__main__':
         #         rating = 'e'
         #     await fp.postMedia(post, tk, extratags, tags=tags, rating=rating)
         #     await asyncio.sleep(random.randrange(0,3))
-
-        await fp.sankaku.helper._session_close()
-        await fp.helper._session_close() # IMPORTANT!!! nu... ne sovsem
 
     asyncio.run(main())

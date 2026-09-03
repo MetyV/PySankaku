@@ -11,7 +11,7 @@ class _Meta(BaseModel):
     prev            : Optional[str] = Field(None, description="")
     page_count      : Optional[int] = Field(None, description="")
 
-class _Data(BaseModel)              : 
+class _Data(BaseModel): 
     id                            : Optional[str] = Field(None, description="")
     rating                        : Optional[str] = Field(None, description="")
     status                        : Optional[str] = Field(None, description="")

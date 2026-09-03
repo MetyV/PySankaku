@@ -201,9 +201,27 @@ class Helper:
             pass
         return 'str'
 
+    def _get_jtp_children(self, value) -> str:
+        if isinstance(value, dict):
+            if not value:
+                return 'dict'
+            first_key = next(iter(value.keys()))
+            first_val = next(iter(value.values()))
+            key_type = self.guess_type(first_key)
+            inner_type = self._get_jtp_children(first_val)
+            return f'dict[{key_type}, {inner_type}]' # if dict have all int and one str, it'll be str dict
+        elif isinstance(value, list):
+            if not value:
+                return 'list'
+            first_val = value[0]
+            inner_type = self._get_jtp_children(first_val)
+            return f'list[{inner_type}]'
+        else:
+            return self.guess_type(str(value))
+
     def jsonToPydantic(self, name: str, path: Path | None = None, js: Optional[dict] = None, allOptional: bool = False):
         '''
-        For now it's a shitty, but working generator. You have dict[list]? He'll generate only dict, but i'll do it better in......... maybe never
+        I think this function works ohuenno, but I don't know how to test it, so I just wrote it and left it here.
         '''
         if js is None:
             js = {}
@@ -225,7 +243,7 @@ class Helper:
                 f'class {name.replace(".py", "")}(BaseModel):'
             ]
             for key, value in js.items():
-                guessed_type = self.guess_type(value)
+                guessed_type = self._get_jtp_children(value)
                 field_type = f'Optional[{guessed_type}]' if allOptional else guessed_type
                 lines.append(f'    {key}: {field_type} = Field(None, description="")')
             

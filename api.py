@@ -16,6 +16,7 @@ from models.avatar import AvatarModel
 from helper import Helper as hlp
 from helper import logger as logging
 from endpoints import *
+from models.registerdata import RegisterData
 from models.searchdata import SearchData
 from models.taggingdata import TagData, TaggingData
 
@@ -205,7 +206,7 @@ class Sankaku(Endpoints):
             return err()
         return data
 
-    async def regAccount(self, login: str, password: str, mail: str, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[dict]:
+    async def regAccount(self, login: str, password: str, mail: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None) -> Optional[RegisterData]:
         json={
             "entry_query":"Y2xpZW50X2lkPXNhbmtha3Utd2ViLWFwcCZsYW5nPWVuJnJlZGlyZWN0X3VyaT1odHRwcyUzQSUyRiUyRnNhbmtha3UuYXBwJTJGc3NvJTJGY2FsbGJhY2smcmVzcG9uc2VfdHlwZT1jb2RlJnJvdXRlPXJlZ2lzdHJhdGlvbiZzY29wZT1vcGVuaWQmc3RhdGU9cmV0dXJuX3VyaSUzRGh0dHBzJTNBJTJGJTJGc2Fua2FrdS5hcHAlMkZhdXRoJnRoZW1lPXdoaXRlJnRvX3BheW1lbnRzPWZhbHNl",
             "user":{
@@ -219,15 +220,15 @@ class Sankaku(Endpoints):
         if not headers:
             headers = self._headers
 
-        data = await self.helper.getJson(self.REGISTER_API_URL, headers, 'POST', json, timeout=timeout)
+        data = await self.helper.getJson(self.REGISTER_API_URL, headers, 'POST', json, timeout=timeout, proxy=proxy)
         if data is None:
             logging.error('Registration failed')
             return
         logging.info('Registration successful')
-        return data
+        return RegisterData.model_validate(data)
 
-    async def resendVerif(self, headers: dict, timeout: ClientTimeout | None = None) -> Optional[dict]:
-        data = await self.helper.getJson(self.API_REQUEST_RESEND_VERIFICATION, headers, 'POST', timeout=timeout)
+    async def resendVerif(self, headers: dict, timeout: ClientTimeout | None = None, proxy: str | None = None) -> Optional[dict]:
+        data = await self.helper.getJson(self.API_REQUEST_RESEND_VERIFICATION, headers, 'POST', timeout=timeout, proxy=proxy)
         if data is None:
             logging.error('Failed to resend verification code')
             return
@@ -447,18 +448,16 @@ class Sankaku(Endpoints):
 if __name__ == '__main__':
     async def main():
         ''' EXAMPLE FOR BEGINNING!!! '''
-        sankaku = Sankaku()
-        token = await sankaku.getRefreshToken('login/mail', 'password')
-        if token is None:
-            return
-        token = await sankaku.exchangeToken(token)
-        if token is None:
-            return
+        async with Sankaku() as sankaku: 
+            token = await sankaku.getRefreshToken('login/mail', 'password')
+            if token is None:
+                return
+            token = await sankaku.exchangeToken(token)
+            if token is None:
+                return
 
-        headers = sankaku.headers(token)
+            headers = sankaku.headers(token)
 
-        # YOUR CODE
-
-        await sankaku.helper._session_close() # IMPORTANT!!! nu... ne sovsem
+            # YOUR CODE
 
     asyncio.run(main())

@@ -2,6 +2,8 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
+from models.postdata import PostData
+
 class BookData(BaseModel): 
       id                 : Optional[str] = Field(None, description="")
       name_en            : Optional[str] = Field(None, description="")
@@ -30,7 +32,7 @@ class BookData(BaseModel):
       genre_tags         : Optional[list] = Field(None, description="")
       is_favorited       : Optional[bool] = Field(None, description="")
       user_vote          : Optional[str] = Field(None, description="")
-      posts              : Optional[list] = Field(None, description="")
+      posts              : Optional[list[PostData]] = Field(None, description="")
       file_url           : Optional[str] = Field(None, description="")
       sample_url         : Optional[str] = Field(None, description="")
       preview_url        : Optional[str] = Field(None, description="")

@@ -55,7 +55,7 @@ class PostData(BaseModel)           :
       gif_preview_url               : Optional[str] = Field(None, description="")
 
 class PostTagsData(BaseModel):
-      success: Optional[bool]           = Field(None, description="")
+      success : Optional[bool]          = Field(None, description="")
       data    : Optional[list[TagData]] = Field(None, description="")
-      total  : Optional[int]            = Field(None, description="")
-      page   : Optional[int]            = Field(None, description="")
+      total   : Optional[int]           = Field(None, description="")
+      page    : Optional[int]           = Field(None, description="")
