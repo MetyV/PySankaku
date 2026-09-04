@@ -4,7 +4,17 @@ from typing import Optional
 
 from models.taggingdata import TagData
 
-class PostData(BaseModel)           : 
+class fPostData(BaseModel): 
+      success: bool               = Field(False, description="")
+      post   : Optional[PostData] = Field(None, description="")
+
+class PostTagsData(BaseModel):
+      success : Optional[bool]          = Field(None, description="")
+      data    : Optional[list[TagData]] = Field(None, description="")
+      total   : Optional[int]           = Field(None, description="")
+      page    : Optional[int]           = Field(None, description="")
+
+class PostData(BaseModel):
       id                            : Optional[str] = Field(None, description="")
       rating                        : Optional[str] = Field(None, description="")
       status                        : Optional[str] = Field(None, description="")
@@ -31,7 +41,7 @@ class PostData(BaseModel)           :
       fav_count                     : Optional[int] = Field(None, description="")
       vote_count                    : Optional[int] = Field(None, description="")
       total_score                   : Optional[int] = Field(None, description="")
-      review_score                  : Optional[str] = Field(None, description="")
+      review_score                  : Optional[int] = Field(None, description="")
       comment_count                 : Optional[int] = Field(None, description="")
       source                        : Optional[str] = Field(None, description="")
       in_visible_pool               : Optional[bool] = Field(None, description="")
@@ -47,15 +57,9 @@ class PostData(BaseModel)           :
       is_restricted_anonymous_upload: Optional[bool] = Field(None, description="")
       is_anonymous                  : Optional[bool] = Field(None, description="")
       total_tags                    : Optional[int] = Field(None, description="")
-      video_duration                : Optional[str] = Field(None, description="")
-      duration                      : Optional[str] = Field(None, description="")
+      video_duration                : Optional[int] = Field(None, description="")
+      duration                      : Optional[int] = Field(None, description="")
       reactions                     : Optional[list] = Field(None, description="")
       subtitles                     : Optional[list] = Field(None, description="")
       audios                        : Optional[list] = Field(None, description="")
       gif_preview_url               : Optional[str] = Field(None, description="")
-
-class PostTagsData(BaseModel):
-      success : Optional[bool]          = Field(None, description="")
-      data    : Optional[list[TagData]] = Field(None, description="")
-      total   : Optional[int]           = Field(None, description="")
-      page    : Optional[int]           = Field(None, description="")

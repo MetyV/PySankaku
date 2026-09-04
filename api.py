@@ -10,7 +10,7 @@ from yarl import URL
 
 from models.bookdata import BookData
 from models.collectiondata import CollectionData
-from models.postdata import PostData, PostTagsData
+from models.postdata import PostData, PostTagsData, fPostData
 from models.accountdata import AccountData
 from models.avatar import AvatarModel
 from helper import Helper as hlp
@@ -168,10 +168,7 @@ class Sankaku(Endpoints):
         data = await self.helper.getJson(url, headers, timeout=timeout)
         if data is None:
             return err()
-        pd = data[0]
-        if not pd:
-            return err()
-        return PostData.model_validate(pd)
+        return PostData.model_validate(data) # not tested
 
     async def getPostTags(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None, page: int = 1, limit: int = 200) -> Optional[PostTagsData]:
         def err():
@@ -287,7 +284,7 @@ class Sankaku(Endpoints):
         logging.info(f'Favorited {id}')
         return data
 
-    async def _ebaniyFile(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None, post: bool = False, cdata: dict | None = None) -> Optional[TaggingData]:
+    async def _ebaniyFile(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None, post: bool = False, cdata: dict | None = None) -> TaggingData | fPostData | None:
         File = self.helper.resolve_path(File)
         if not File.exists():
             logging.error(f'File {File} does not exist')
@@ -326,7 +323,7 @@ class Sankaku(Endpoints):
                 data.add_field(key, str(value))
 
         resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout)
-        return TaggingData.model_validate(resp)
+        return fPostData.model_validate(resp) if post else TaggingData.model_validate(resp)
         
     async def tagMedia(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None) -> Optional[TaggingData]:
         resp = await self._ebaniyFile(File, headers=headers, timeout=timeout)
@@ -337,7 +334,7 @@ class Sankaku(Endpoints):
 
         return TaggingData.model_validate(resp)
 
-    async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: ClientTimeout | None = None) -> Optional[TaggingData]:
+    async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: ClientTimeout | None = None) -> Optional[fPostData]:
         tagss = json.dumps([{"name": tag} for tag in tags])
         data = {
             "post[parent_id]": parentID,
@@ -354,7 +351,7 @@ class Sankaku(Endpoints):
             logging.error(f'Failed to post')
             return
         
-        return TaggingData.model_validate(resp)
+        return fPostData.model_validate(resp)
 
     async def changeAvatar(self, 
                            userID: str | int, 

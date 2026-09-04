@@ -10,6 +10,7 @@ from helper import Helper as hlp
 from helper import logger as logging
 from models.collectiondata import CollectionData
 from aiohttp import ClientTimeout
+from models.postdata import PostData, fPostData
 from models.registerdata import RegisterData
 from models.taggingdata import TagType, TaggingData, TagData
 
@@ -74,7 +75,7 @@ class ILoveShit:
                         parentID: str = '', 
                         rating: rating = 'e', 
                         timeout: ClientTimeout | None = None, 
-                        tags: list = []) -> Optional[TaggingData]:
+                        tags: list = []) -> Optional[fPostData]:
         headers = self._chckTK(headers, token)
 
         if not tags:
@@ -82,7 +83,8 @@ class ILoveShit:
             if ttags is None:
                 self.__nihuyaNet('Failed to get tags automatically.')
                 return
-            tags = [tag.name for tag in ttags]
+            t = self.prepareTags(ttags)
+            tags = [tag.name for tag in t]
 
         if extraTags:
             tags.extend(extraTags)
@@ -92,7 +94,7 @@ class ILoveShit:
         if res is None:
             return
             
-        return res
+        return fPostData.model_validate(res)
 
     CollectionDlMode = Literal['post', 'pool', 'series']
     async def downloadCollection(self, 
@@ -226,7 +228,7 @@ class ILoveShit:
             '''
         return r
 
-    def prepareTags(self, tags: list[TagData]) -> Optional[list[TagData]]:
+    def prepareTags(self, tags: list[TagData]) -> list[TagData]:
         excl = {
             '8yrxk0lnaE6' # "Useless tags", moders dont like this tag
             }
