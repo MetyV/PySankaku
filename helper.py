@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 import aiohttp
 from aiohttp import ClientTimeout, ClientResponse, ClientSession, FormData
+from helpermdl.har import Endpoint, HarToEndpoints, Params, RequestData, ResponseData
 '''
 ClientTimeout(X(Y))
   X              Y
@@ -249,4 +251,91 @@ class Helper:
             
             f.write('\n'.join(lines))
 
-# nahuy accounts, budet universal HTTP request helper, kotoriy mozhno ispolzovat dlya vsego, vrode
+    def parse_har_to_endpoints(self, file: Path, domains: list = [], incPayload: bool = True, incResponse: bool = True) -> Optional[HarToEndpoints]:
+        '''
+        domains may contain full url or endpoint(/post) or domain
+        '''
+        file = self.resolve_path(file)
+
+        if not file.exists():
+            return
+        
+        with open(file, 'r') as f:
+            har = json.load(f)
+
+        res = HarToEndpoints(url={})
+
+        for entry in har['log']['entries']:
+            req = entry['request']
+            furl = req['url']
+            method = req['method']
+
+            if domains and not any(domain in furl for domain in domains):
+                continue
+
+            parsed = urlparse(furl)
+            baseURL = f'{parsed.scheme}://{parsed.netloc}'
+            path = parsed.path
+            query = f'?{parsed.query}' if parsed.query else ''
+
+            if baseURL not in res.url:
+                res.url[baseURL] = {}
+            if path not in res.url[baseURL]:
+                res.url[baseURL][path] = {}
+            if query not in res.url[baseURL][path]:
+                res.url[baseURL][path][query] = Endpoint()
+
+            reqHeaders = {}
+            for header in req.get('headers', []):
+                reqHeaders[header.get('name', '')] = header.get('value', '')
+
+            reqBody = None
+            postData = req.get('postData')
+            if incPayload and postData:
+                if 'text' in postData:
+                    try:
+                        reqBody = json.loads(postData['text'])
+                    except:
+                        reqBody = postData['text']
+                elif 'params' in postData:
+                    reqBody = postData['params']
+
+            resp = entry.get('response', {})
+            respStatus = resp.get('status', 0)
+            
+            respBody = None
+            if incResponse:
+                content = resp.get('content', {})
+                text = content.get('text', '')
+                if text:
+                    try:
+                        respBody = json.loads(text)
+                    except:
+                        if len(text) > 10000:
+                            text = text[:10000] + '... [TRUNCATED]'
+                        respBody = text
+
+            respHeaders = {}
+            for header in resp.get('headers', []):
+                respHeaders[header.get('name', '')] = header.get('value', '')
+
+            if method in res.url[baseURL][path][query].params:
+                res.url[baseURL][path][query].params[method].requests_count += 1
+            else:
+                res.url[baseURL][path][query].params[method] = Params(
+                    method=method,
+                    requests_count=1,
+                    request=RequestData(
+                        headers=reqHeaders if reqHeaders else None,
+                        body=reqBody,
+                        timestamp=entry.get('startedDateTime')
+                    ),
+                    response=ResponseData(
+                        status=respStatus,
+                        body=respBody,
+                        headers=respHeaders if respHeaders else None,
+                        timestamp=entry.get('startedDateTime')
+                    )
+                )
+
+        return HarToEndpoints.model_validate(res)
