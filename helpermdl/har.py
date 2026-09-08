@@ -15,11 +15,17 @@ class ResponseData(BaseModel):
     timestamp: Optional[str] = None
 
 
+class RequestEntry(BaseModel):
+    id: str
+    method: str
+    request: RequestData
+    response: ResponseData
+
+
 class Params(BaseModel):
     method: str
     requests_count: int = 0
-    request: Optional[RequestData] = None
-    response: Optional[ResponseData] = None
+    requests: Dict[str, RequestEntry] = Field(default_factory=dict)
 
 
 class Endpoint(BaseModel):
