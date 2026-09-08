@@ -2,7 +2,6 @@ __pycache__/
 .venv/
 .vscode/
 *.pyc
-.env
 *.json
 test_all.py
 

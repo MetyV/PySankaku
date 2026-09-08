@@ -1,16 +1,16 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
 class RequestData(BaseModel):
     headers: Optional[dict] = None
-    body: Optional[dict] = None
+    body: Optional[Any] = None
     timestamp: Optional[str] = None
 
 
 class ResponseData(BaseModel):
     status: int
-    body: Optional[dict] = None
+    body: Optional[Any] = None
     headers: Optional[dict] = None
     timestamp: Optional[str] = None
 

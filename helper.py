@@ -251,7 +251,7 @@ class Helper:
             
             f.write('\n'.join(lines))
 
-    def parse_har_to_endpoints(self, file: Path, domains: list = [], incPayload: bool = True, incResponse: bool = True) -> Optional[HarToEndpoints]:
+    def parse_har_to_endpoints(self, file: Path, domains: list = [], incPayload: bool = True, incResponse: bool = True) -> Optional[str]:
         '''
         domains may contain full url or endpoint(/post) or domain
         '''
@@ -338,4 +338,4 @@ class Helper:
                     )
                 )
 
-        return HarToEndpoints.model_validate(res)
+        return res.model_dump_json(indent=2)
