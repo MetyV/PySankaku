@@ -81,8 +81,7 @@ class ILoveShit:
         if not tags:
             ttags = await self.tagMedia(File, token=token, headers=headers, timeout=timeout)
             if ttags is None:
-                self.__nihuyaNet('Failed to get tags automatically.')
-                return
+                return self.__nihuyaNet('Failed to get tags automatically.')
             t = self.prepareTags(ttags)
             tags = [tag.name for tag in t]
 

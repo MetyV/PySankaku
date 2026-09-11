@@ -168,6 +168,7 @@ class Sankaku(Endpoints):
         data = await self.helper.getJson(url, headers, timeout=timeout)
         if data is None:
             return err()
+        data=data[0]
         return PostData.model_validate(data) # not tested
 
     async def getPostTags(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None, page: int = 1, limit: int = 200) -> Optional[PostTagsData]:
@@ -273,15 +274,15 @@ class Sankaku(Endpoints):
         logging.info('Account info updated successfully')
         return AccountData.model_validate(user)
 
-    async def favor(self, headers: dict, id: str, book: bool, fav: bool = True, timeout: ClientTimeout | None = None) -> Optional[dict]:
-        url = f'{self.API_BOOKS_URL if book else self.API_POSTS_URL}/{id}/favorite'
+    async def favor(self, headers: dict, id: str, isbook: bool, fav: bool = True, timeout: ClientTimeout | None = None) -> Optional[dict]:
+        url = f'{self.API_BOOKS_URL if isbook else self.API_POSTS_URL}/{id}/favorite'
 
         data = await self.helper.getJson(url, headers, 'POST' if fav else 'DELETE')
 
         if data is None:
             logging.error(f'Failed to fav {id}')
             return
-        logging.info(f'Favorited {id}')
+        logging.info(f'Set favor {fav} for {id}')
         return data
 
     async def _ebaniyFile(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None, post: bool = False, cdata: dict | None = None) -> TaggingData | fPostData | None:
@@ -312,18 +313,24 @@ class Sankaku(Endpoints):
         
         data = aiohttp.FormData()
         with open(File, 'rb') as f:
-            data.add_field(fieldName, f.read(), filename=File.name, content_type=mime)
+            data.add_field(fieldName, f, filename=File.name, content_type=mime)
 
-        if cdata:
-            for key, value in cdata.items():
-                if value is None or value == '':
-                    continue
-                if isinstance(value, list):
-                    value = str(value)
-                data.add_field(key, str(value))
+            if cdata:
+                for key, value in cdata.items():
+                    if not value:
+                        continue
+                    data.add_field(key, str(value))
 
-        resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout)
-        return fPostData.model_validate(resp) if post else TaggingData.model_validate(resp)
+            resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout)
+
+        if resp is None:
+            logging.error(f'API request failed, response is None')
+            return None
+        
+        if post:
+            return fPostData.model_validate(resp)
+        else:
+            return TaggingData.model_validate(resp)
         
     async def tagMedia(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None) -> Optional[TaggingData]:
         resp = await self._ebaniyFile(File, headers=headers, timeout=timeout)
@@ -338,7 +345,7 @@ class Sankaku(Endpoints):
         tagss = json.dumps([{"name": tag} for tag in tags])
         data = {
             "post[parent_id]": parentID,
-            "post[rating]": rating, # Chtob ne banili. mojno i 's'
+            "post[rating]": rating,
             "post[tags]": tagss,
             "post[upload_url]": "",
             "post[pool_id]": "",
@@ -428,7 +435,7 @@ class Sankaku(Endpoints):
         }
         if hide_posts_in_books is not None:
             params['hide_posts_in_books'] = hide_posts_in_books
-        if nextH is not None:
+        if nextH:
             params['next'] = nextH
 
         params = {k: v for k, v in params.items() if v is not None}
