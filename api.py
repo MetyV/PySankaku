@@ -36,7 +36,7 @@ class Sankaku(Endpoints):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.helper._session_close()
 
-    async def getRefreshToken(self, login: str, password: str, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[str]:
+    async def getRefreshToken(self, login: str, password: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[str]:
         def err():
             logging.error('Refresh token retrieval failed')
             return
@@ -50,7 +50,7 @@ class Sankaku(Endpoints):
                 "login":login,
                 "password":password,
                 "mfaParams":{"login":login}
-                }, timeout=timeout)
+                }, timeout=timeout, proxy=proxy, ssl=ssl)
         
         if data is None:
             return err()
@@ -62,7 +62,7 @@ class Sankaku(Endpoints):
 
         return token
 
-    async def exchangeToken(self, refToken: str, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[str]:
+    async def exchangeToken(self, refToken: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[str]:
         def err():
             logging.error('Token retrieval failed')
             return
@@ -76,7 +76,7 @@ class Sankaku(Endpoints):
             "access_token":refToken,
             "client_id":self.CLIENT_ID,
             "url":self.BASE_URL
-            }, timeout=timeout)
+            }, timeout=timeout, proxy=proxy, ssl=ssl)
         
         if data is None:
             return err()
@@ -204,7 +204,7 @@ class Sankaku(Endpoints):
             return err()
         return data
 
-    async def regAccount(self, login: str, password: str, mail: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None) -> Optional[RegisterData]:
+    async def regAccount(self, login: str, password: str, mail: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[RegisterData]:
         json={
             "entry_query":"Y2xpZW50X2lkPXNhbmtha3Utd2ViLWFwcCZsYW5nPWVuJnJlZGlyZWN0X3VyaT1odHRwcyUzQSUyRiUyRnNhbmtha3UuYXBwJTJGc3NvJTJGY2FsbGJhY2smcmVzcG9uc2VfdHlwZT1jb2RlJnJvdXRlPXJlZ2lzdHJhdGlvbiZzY29wZT1vcGVuaWQmc3RhdGU9cmV0dXJuX3VyaSUzRGh0dHBzJTNBJTJGJTJGc2Fua2FrdS5hcHAlMkZhdXRoJnRoZW1lPXdoaXRlJnRvX3BheW1lbnRzPWZhbHNl",
             "user":{
@@ -218,7 +218,7 @@ class Sankaku(Endpoints):
         if not headers:
             headers = self._headers
 
-        data = await self.helper.getJson(self.REGISTER_API_URL, headers, 'POST', json, timeout=timeout, proxy=proxy)
+        data = await self.helper.getJson(self.REGISTER_API_URL, headers, 'POST', json, timeout=timeout, proxy=proxy, ssl=ssl)
         if data is None:
             logging.error('Registration failed')
             return
@@ -233,8 +233,8 @@ class Sankaku(Endpoints):
         logging.info('Verification code resent successfully')
         return data
 
-    async def getAccountInfo(self, headers: dict, id: str = 'me', timeout: ClientTimeout | None = None) -> Optional[AccountData]:
-        data = await self.helper.getJson(f'{self.USERS_API_URL}/{id}', headers, timeout=timeout)
+    async def getAccountInfo(self, headers: dict, id: str = 'me', timeout: ClientTimeout | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[AccountData]:
+        data = await self.helper.getJson(f'{self.USERS_API_URL}/{id}', headers, timeout=timeout, proxy=proxy, ssl=ssl)
 
         if data is None:
             logging.error('Failed to get account info')
@@ -248,7 +248,7 @@ class Sankaku(Endpoints):
         logging.info('Account info retrieved successfully')
         return AccountData.model_validate(user)
 
-    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: ClientTimeout | None = None) -> Optional[AccountData]:
+    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: ClientTimeout | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[AccountData]:
         '''
         Returns data like getAccountInfo
         here dohuya vozmojnogo but i'm too lazy to find it
@@ -259,7 +259,9 @@ class Sankaku(Endpoints):
             headers,
             'PUT',
             payload,
-            timeout=timeout
+            timeout=timeout,
+            proxy=proxy,
+            ssl=ssl
         )
 
         if data is None:
