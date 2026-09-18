@@ -12,12 +12,12 @@ class BaseAccountData(BaseModel):
     created_at                : Optional[str]  = Field(None, description='')            # like "2023-07-29T19:49:19.319Z"
     level                     : Optional[int]  = Field(None, description='')
     name                      : Optional[str]  = Field(None, description='User name')
-    id                        : Optional[str]  = Field(None, description='')
 
 class AccountData(BaseAccountData):
     '''
     Descriptions in future
     '''
+    id               : Optional[str]  = Field(None)
     display_name     : Optional[str]  = Field(None, description='[EDITABLE] Displayed name')
     filter_content   : Optional[bool] = Field(None, description='[EDITABLE] Hide sensitive content')
     favs_are_private : Optional[bool] = Field(None, description='[EDITABLE] Keep favs and other activity private')

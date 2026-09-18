@@ -8,4 +8,7 @@ class RegisterData(BaseModel):
     token_type    : Optional[str]             = Field(None, description="")
     access_token  : Optional[str]             = Field(None, description="")
     refresh_token: Optional[str]              = Field(None, description="")
-    current_user  : Optional[BaseAccountData] = Field(None, description="")
+    current_user  : Optional[_Data] = Field(None, description="")
+
+class _Data(BaseAccountData):
+    id: Optional[int]  = Field(None, description='')
