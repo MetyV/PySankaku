@@ -1,4 +1,5 @@
 import asyncio
+import math
 from aiohttp import ClientTimeout
 import json
 from pathlib import Path
@@ -60,6 +61,8 @@ class Sankaku(Endpoints):
         if not token:
             return err()
 
+        logging.info('Refresh token retreived')
+
         return token
 
     async def exchangeToken(self, refToken: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[str]:
@@ -86,13 +89,15 @@ class Sankaku(Endpoints):
         if not token:
             return err()
 
+        logging.info('Token retrieved')
+
         return token
 
-    def headers(self, token: str) -> dict:
+    def headers(self, token: str, headers: dict | None = None) -> dict:
         '''
         ya leniviy, tak chto on self doing this auth shit
         '''
-        headers = self._headers.copy()
+        headers = self._headers.copy() if not headers else headers.copy()
         headers['Authorization'] = f'Bearer {token}'
         return headers
 
@@ -128,18 +133,22 @@ class Sankaku(Endpoints):
         if not fdata:
             return err()
 
-        furl = None
-        match quality:
-            case 0:
-                furl = fdata.get('file_url') or fdata.get('fallback_url') or fdata.get('sample_url')
-            case 1:
-                furl = fdata.get('sample_url')
-            case 2:
-                furl = fdata.get('fallback_url')
-            case 3:
-                furl = fdata.get('file_url')
+        def w(q):
+            furl = None
+            match q:
+                case 1:
+                    furl = fdata.get('sample_url')
+                case 2:
+                    furl = fdata.get('fallback_url')
+                case 3:
+                    furl = fdata.get('file_url')
+            return furl
+
+        furl = w(quality) if quality else (w(3) or w(2) or w(1))
+            
         if not furl:
             return err()
+        logging.info(f'Post {id} file URL retrieved with {quality} quality')
         return furl
 
     async def getBookData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[BookData]:
@@ -451,6 +460,32 @@ class Sankaku(Endpoints):
         
         return SearchData.model_validate(data)
 
+class Miscs():
+    def calcSoftcap(self, rep: int):
+        tbl=[
+            (500, 500, 0),
+            (50, 1000, 1),
+            (100, 1500, 2),
+            (100, 2100, 5),
+            (100, 2400, 10),
+            (100, 3800, 1),
+            (200, 4000, 1),
+            (1000, 7000, 1)
+            ]
+        total = 0
+        repf = 0
+        perc = 100
+        for repc, rept, per in tbl:
+            while total < rept and rep > 0:
+                perc -= per
+                take = min(repc, rep)
+                total += take
+                rep -= take
+                repf += take * (perc / 100)
+        if rep > 0:
+            repf += rep * 0.01
+        return repf
+
 if __name__ == '__main__':
     async def main():
         ''' EXAMPLE FOR BEGINNING!!! '''
@@ -467,3 +502,9 @@ if __name__ == '__main__':
             # YOUR CODE
 
     asyncio.run(main())
+
+
+'''
+10-11 - 20000
+
+'''
