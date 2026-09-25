@@ -386,19 +386,34 @@ class Sankaku(Endpoints):
 
         return await self.helper.getJson(url, headers, 'PUT', json.model_dump(), timeout=timeout)
 
-    async def getCollectionData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[CollectionData]:
-        url = f'{self.API_COLLECTIONS_URL}/{id}'
+
+    async def getOrCreateCollection(self, data: str | CollectionCreating, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[CollectionData]:
+        typee = 'retrieve' if isinstance(data, str) else 'create'
+        url = self.API_COLLECTIONS_URL
 
         if not headers:
             headers = self._headers
 
-        res = await self.helper.getJson(url, headers, timeout=timeout)
+        method = 'GET'
+        js={}
+        if typee == 'retrieve':
+            url+=f'/{data}'
+        else:
+            js = data.model_dump() # type: ignore . typehint is shitty shit
+            method = 'POST'
+            
+        res = await self.helper.getJson(url, headers, timeout=timeout, method=method, json=js)
 
         if res is None:
-            logging.error(f'Failed to retrieve collection {id} data.')
+            logging.error(f'Failed to {typee} collection.')
             return
 
-        return CollectionData.model_validate(res)
+        dat = CollectionData.model_validate(res)
+
+        if typee == 'create':
+            logging.info(f'Created collection {dat.id}')
+
+        return dat
 
     def _add_param(self, parts: list, key: str, value: str | int | None, fmt: str = "{}:{}"):
         if value is not None:
@@ -459,24 +474,6 @@ class Sankaku(Endpoints):
             return
         
         return SearchData.model_validate(data)
-
-    async def createCollection(self, data = CollectionCreating, headers: dict | None = None, timeout: ClientTimeout | None = None) -> Optional[CollectionData]:
-        url = self.API_COLLECTIONS_URL
-
-        if not headers:
-            headers = self._headers
-
-        res = await self.helper.getJson(url, headers, timeout=timeout)
-
-        if res is None:
-            logging.error(f'Failed to create collection.')
-            return
-
-        data = CollectionData.model_validate(res)
-
-        logging.info(f'Created collection {data.id}')
-
-        return data
 
 class Miscs():
     def calcSoftcap(self, rep: int):
