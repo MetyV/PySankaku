@@ -1,10 +1,20 @@
+#!/usr/bin/env python3
 import json
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
+
 import aiohttp
-from aiohttp import ClientTimeout, ClientResponse, ClientSession, FormData
-from helpermdl.har import Endpoint, HarToEndpoints, Params, RequestData, ResponseData, RequestEntry
+from aiohttp import ClientResponse, ClientSession, ClientTimeout, FormData
+
+from helpermdl.har import (
+    Endpoint,
+    HarToEndpoints,
+    Params,
+    RequestData,
+    RequestEntry,
+    ResponseData,
+)
+
 '''
 ClientTimeout(X(Y))
   X              Y
@@ -14,10 +24,11 @@ sock_read      = 1 # wait X seconds between chunks
 sock_connect   = 1 # like total
 '''
 
+import logging
+
 import puremagic
 from yarl import URL
 
-import logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(filename)s:%(funcName)s:%(lineno)d | %(message)s',
@@ -42,7 +53,7 @@ class Helper:
     async def _session_close(self):
         if self.session:
             await self.session.close()
-        
+
     async def _session_init(self):
         if self.session:
             await self._session_close()
@@ -50,44 +61,44 @@ class Helper:
 
     def resolve_path(self, path: Path | str) -> Path:
         return Path(path).resolve()
-    
+
     def get_filename_from_url(self, url: str, extension: bool = False) -> str:
         parsed = urlparse(url)
         if extension:
             return parsed.path
         return Path(parsed.path).stem
 
-    def _stack(self, 
-                method: str, 
-                url: str, 
-                headers: dict = {}, 
-                json: dict | None = None, 
+    def _stack(self,
+                method: str,
+                url: str,
+                headers: dict = {},
+                json: dict | None = None,
                 data = None):
-        
-        logging.info("─ REQUEST ─")
-        logging.info(f"│ Method: {method}")
-        logging.info(f"│ URL: {url}")
+
+        logger.info("─ REQUEST ─")
+        logger.info(f"│ Method: {method}")
+        logger.info(f"│ URL: {url}")
         if headers:
             hdrs = headers.copy()
-            logging.info(f"│ Headers: {hdrs}")
+            logger.info(f"│ Headers: {hdrs}")
         if json:
-            logging.info(f"│ JSON: {json}")
-        
+            logger.info(f"│ JSON: {json}")
+
         if data:
-            logging.info(f"│ Data: {data}")
-        
-        logging.info("───────────────────────────────────────")
-    
-    async def request(self, 
-                      url: str, 
-                      headers: dict, 
-                      method: str = 'GET', 
-                      json: dict | None = None, 
-                      data: aiohttp.FormData | None = None, 
+            logger.info(f"│ Data: {data}")
+
+        logger.info("───────────────────────────────────────")
+
+    async def request(self,
+                      url: str,
+                      headers: dict,
+                      method: str = 'GET',
+                      json: dict | None = None,
+                      data: aiohttp.FormData | None = None,
                       timeout: ClientTimeout | None = None,
-                      retries: int = 1, 
+                      retries: int = 1,
                       proxy = None,
-                      ssl: bool = True) -> tuple[Optional[ClientResponse], Optional[int]]:
+                      ssl: bool = True) -> tuple[ClientResponse | None, int | None]:
         headers = headers.copy()
         json = json.copy() if json else None
 
@@ -96,9 +107,9 @@ class Helper:
 
         st = None
         def printErr(text):
-            logging.error(f'{text}: {st}')
+            logger.error(f'{text}: {st}')
             return (None, None)
-        
+
         if self.session is None:
             await self._session_init()
 
@@ -110,9 +121,9 @@ class Helper:
                 st = r.status
                 newUrl = r.url
                 match st:
-                    case 404: return printErr(f'No page')
+                    case 404: return printErr('No page')
                     case (301, 302, 303, 307, 308):
-                        logging.info(f'Redirect: {st}')
+                        logger.info(f'Redirect: {st}')
                         if not isinstance(newUrl, URL): # ne rabotaet navernoe, no vsegda dolzhno byt URL
                             return printErr('No redirect url extracted')
                         return await self.request(newUrl, headers, method, json, data, timeout, retries, proxy)
@@ -132,38 +143,37 @@ class Helper:
                 return (r, st)
             except Exception as e:
                 if i < retries:
-                    logging.warning(f'Request error: attempt {i+1}/{retries} - {e}')
+                    logger.warning(f'Request error: attempt {i+1}/{retries} - {e}')
                 else:
-                    logging.error(f'Request failed after {retries} attempts: {e}')
+                    logger.error(f'Request failed after {retries} attempts: {e}')
                     return (None, None)
         return (None, None)
-                
-    async def getJson(self, 
-                      url: str, 
-                      headers: dict, 
-                      method: str = 'GET', 
-                      json: dict = {}, 
-                      data: FormData | None = None, 
-                      timeout: ClientTimeout | None = None, 
+
+    async def getJson(self,
+                      url: str,
+                      headers: dict,
+                      method: str = 'GET',
+                      json: dict = {},
+                      data: FormData | None = None,
+                      timeout: ClientTimeout | None = None,
                       retries: int = 1, proxy = None,
-                      ssl: bool = True) -> Optional[dict]:
+                      ssl: bool = True) -> dict | None:
         def printErr():
-            logging.error('Json data fetch failed')
-            return None
-        
+            logger.error('Json data fetch failed')
+
         resp, _ = await self.request(url, headers, method, json, data, timeout, retries, proxy, ssl)
 
         if resp is None:
             return printErr()
-        
+
         js = await resp.json()
-        
+
         if js:
-            logging.info('Json data fetched')
+            logger.info('Json data fetched')
             return js
-        
+
         return printErr()
-    
+
     def get_mime(self, file: Path | str) -> str:
         try:
             return puremagic.from_file(file, mime=True)
@@ -175,16 +185,16 @@ class Helper:
             return 'str'
         if isinstance(value, dict):
             return 'dict'
-        
+
         if isinstance(value, list):
             return 'list'
-        
+
         if isinstance(value, bool):
             return 'bool'
-        
+
         if isinstance(value, int):
             return 'int'
-        
+
         if isinstance(value, float):
             return 'float'
         if value.lower() in ('none', 'null', ''):
@@ -209,14 +219,14 @@ class Helper:
         name = name if name.endswith('.py') else f'{name}.py'
         file_path = path / name
         classes = {}
-        
+
         def t(v):
             if v is None: return 'Any'
             if isinstance(v, bool): return 'bool'
             if isinstance(v, int): return 'int'
             if isinstance(v, float): return 'float'
             return 'str'
-        
+
         def gen(cn, d):
             if cn in classes: return cn
             flds = []
@@ -232,10 +242,10 @@ class Helper:
                 flds.append(f'    {fld} = Field(None)' if allOptional or isinstance(v, (dict,list)) else f'    {fld} = Field(...)')
             classes[cn] = [f'class {cn}(BaseModel):'] + flds
             return cn
-        
+
         root = name.replace('.py', '')
         gen(root, js)
-        
+
         with open(file_path, 'w+', encoding='utf-8') as f:
             lines = ['# Autogenerated', 'from pydantic import BaseModel, Field', 'from typing import Optional, List, Any', '']
             for cn, cls in classes.items():
@@ -243,7 +253,7 @@ class Helper:
                 if cn != root: lines.append('')
             f.write('\n'.join(lines))
 
-    def parse_har_to_endpoints(self, file: Path, domains: list = [], incPayload: bool = True, incResponse: bool = True) -> Optional[dict]:
+    def parse_har_to_endpoints(self, file: Path, domains: list = [], incPayload: bool = True, incResponse: bool = True) -> dict | None:
         '''
         domains may contain full url or endpoint(/post) or domain
         '''
@@ -251,7 +261,7 @@ class Helper:
 
         if not file.exists():
             return
-        
+
         with open(file, 'r') as f:
             har = json.load(f)
 
@@ -295,7 +305,7 @@ class Helper:
 
             resp = entry.get('response', {})
             respStatus = resp.get('status', 0)
-            
+
             respBody = None
             if incResponse:
                 content = resp.get('content', {})

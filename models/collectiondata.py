@@ -2,7 +2,18 @@
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List, Any
 
-class collAuthor(BaseModel): 
+# adding/removing item
+class collectionAddItem(BaseModel):
+      item_id: str
+      item_type: str
+
+actions = Literal['add', 'remove']
+class collectionRemAddResponse(BaseModel):
+      action: actions
+      success: bool
+
+# collection data
+class collAuthor(BaseModel):
       id                   : Optional[str] = Field(None)
       name                 : Optional[str] = Field(None)
       display_name         : Optional[str] = Field(None)
@@ -10,7 +21,7 @@ class collAuthor(BaseModel):
       avatar               : Optional[str] = Field(None)
       avatar_rating        : Optional[str] = Field(None)
 
-class collPreviewsItemAuthor(BaseModel): 
+class collPreviewsItemAuthor(BaseModel):
       id                               : Optional[str] = Field(None)
       name                             : Optional[str] = Field(None)
       display_name                     : Optional[str] = Field(None)
@@ -18,12 +29,12 @@ class collPreviewsItemAuthor(BaseModel):
       avatar                           : Optional[str] = Field(None)
       avatar_rating                    : Optional[str] = Field(None)
 
-class collPreviewsItemCreated_at(BaseModel): 
+class collPreviewsItemCreated_at(BaseModel):
       json_class                           : Optional[str] = Field(None)
       s                                    : Optional[int] = Field(None)
       n                                    : Optional[int] = Field(None)
 
-class collPreviewsItemTagsItem(BaseModel): 
+class collPreviewsItemTagsItem(BaseModel):
       id                                 : Optional[str] = Field(None)
       name_en                            : Optional[str] = Field(None)
       name_ja                            : Optional[str] = Field(None)
@@ -43,7 +54,7 @@ class collPreviewsItemTagsItem(BaseModel):
       notification_enabled               : Optional[bool] = Field(None)
       name                               : Optional[str] = Field(None)
 
-class collPreviewsItem(BaseModel)   : 
+class collPreviewsItem(BaseModel)   :
       id                            : Optional[str] = Field(None)
       rating                        : Optional[str] = Field(None)
       author                        : Optional[collPreviewsItemAuthor] = Field(None)
@@ -76,7 +87,7 @@ class collPreviewsItem(BaseModel)   :
       audios                        : Optional[List[Any]] = Field(None)
       gif_preview_url               : Optional[Any] = Field(None)
 
-class CollectionData(BaseModel): 
+class CollectionData(BaseModel):
       id                       : Optional[str] = Field(None)
       author                   : Optional[collAuthor] = Field(None)
       name                     : Optional[str] = Field(None)
@@ -96,11 +107,10 @@ class CollectionData(BaseModel):
       totalComments            : Optional[int] = Field(None)
       reactions                : Optional[List[Any]] = Field(None)
 
+# collection creating
 VisibilityType = Literal['private', 'public']
-class CollectionCreating(BaseModel): 
+class CollectionCreating(collectionAddItem):
       name                         : str
       description                  : Optional[str] = Field(None)
       visibility                   : VisibilityType = Field('private')
       allow_public_edit            : Optional[bool] = Field(None)
-      item_id                      : Optional[str] = Field(None)
-      item_type                    : Optional[str] = Field(None, description='E.G. post')

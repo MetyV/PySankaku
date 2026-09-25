@@ -1,25 +1,26 @@
+#!/usr/bin/env python3
 import asyncio
-import math
-from aiohttp import ClientTimeout
 import json
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 from urllib.parse import urlencode, urlparse
 
 import aiohttp
-from yarl import URL
+from aiohttp import ClientTimeout
 
-from models.bookdata import BookData
-from models.collectiondata import CollectionData, CollectionCreating
-from models.postdata import PostData, PostTagsData, fPostData
-from models.accountdata import AccountData
-from models.avatar import AvatarModel
+from endpoints import *
 from helper import Helper as hlp
 from helper import logger as logging
-from endpoints import *
+from models.accountdata import AccountData
+from models.avatar import AvatarModel
+from models.bookdata import BookData
+from models.collectiondata import CollectionCreating, CollectionData, collectionAddItem, collectionRemAddResponse
+from models.postdata import PostData, PostTagsData, fPostData
 from models.registerdata import RegisterData
 from models.searchdata import SearchData
-from models.taggingdata import TagData, TaggingData
+from models.suc import suc
+from models.taggingdata import TaggingData
+
 
 class Sankaku(Endpoints):
     '''
@@ -33,14 +34,13 @@ class Sankaku(Endpoints):
     async def __aenter__(self):
         await self.helper._session_init()
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.helper._session_close()
 
-    async def getRefreshToken(self, login: str, password: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[str]:
+    async def getRefreshToken(self, login: str, password: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> str | None:
         def err():
             logging.error('Refresh token retrieval failed')
-            return
 
         logging.info('Retrieving refresh token...')
 
@@ -52,7 +52,7 @@ class Sankaku(Endpoints):
                 "password":password,
                 "mfaParams":{"login":login}
                 }, timeout=timeout, proxy=proxy, ssl=ssl)
-        
+
         if data is None:
             return err()
 
@@ -65,10 +65,9 @@ class Sankaku(Endpoints):
 
         return token
 
-    async def exchangeToken(self, refToken: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[str]:
+    async def exchangeToken(self, refToken: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> str | None:
         def err():
             logging.error('Token retrieval failed')
-            return
 
         logging.info('Retrieving token...')
 
@@ -80,7 +79,7 @@ class Sankaku(Endpoints):
             "client_id":self.CLIENT_ID,
             "url":self.BASE_URL
             }, timeout=timeout, proxy=proxy, ssl=ssl)
-        
+
         if data is None:
             return err()
 
@@ -114,14 +113,13 @@ class Sankaku(Endpoints):
         return post_id
 
     QualityType = Literal[0, 1, 2, 3]
-    async def getPostFu(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None, quality: QualityType = 0) -> Optional[str]:
+    async def getPostFu(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None, quality: QualityType = 0) -> str | None:
         '''
         quality: 0 - best possible, 1 - sample, 2 - fallback, 3 - file_url
         '''
         def err():
             logging.error(f'Failed to retrieve post {id} file URL with {quality} quality.')
-            return
-        
+
         if not headers:
             headers = self._headers
 
@@ -145,17 +143,16 @@ class Sankaku(Endpoints):
             return furl
 
         furl = w(quality) if quality else (w(3) or w(2) or w(1))
-            
+
         if not furl:
             return err()
         logging.info(f'Post {id} file URL retrieved with {quality} quality')
         return furl
 
-    async def getBookData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[BookData]:
+    async def getBookData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> BookData | None:
         def err():
             logging.error(f'Failed to retrieve book {id} data.')
-            return
-        
+
         if not headers:
             headers = self._headers
 
@@ -165,11 +162,10 @@ class Sankaku(Endpoints):
             return err()
         return BookData.model_validate(data)
 
-    async def getPostData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[PostData]:
+    async def getPostData(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None) -> PostData | None:
         def err():
             logging.error(f'Failed to retrieve post {id} data.')
-            return
-        
+
         if not headers:
             headers = self._headers
 
@@ -180,10 +176,9 @@ class Sankaku(Endpoints):
         data=data[0]
         return PostData.model_validate(data) # not tested
 
-    async def getPostTags(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None, page: int = 1, limit: int = 200) -> Optional[PostTagsData]:
+    async def getPostTags(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None, page: int = 1, limit: int = 200) -> PostTagsData | None:
         def err():
             logging.error(f'Failed to retrieve post {id} tags.')
-            return
         if not headers:
                 headers = self._headers
 
@@ -194,14 +189,13 @@ class Sankaku(Endpoints):
         return PostTagsData.model_validate(data)
 
     VoteScore = Literal[0, 1, 2, 3, 4, 5]
-    async def votePost(self, id, vote: VoteScore = 5, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[dict]:
+    async def votePost(self, id, vote: VoteScore = 5, timeout: ClientTimeout | None = None, headers: dict | None = None) -> dict | None:
         '''
         0 - remove vote, 1-5 - vote score
         '''
         def err():
             logging.error(f'Failed to vote: {id}.')
-            return
-        
+
         if not headers:
             headers = self._headers
 
@@ -213,7 +207,7 @@ class Sankaku(Endpoints):
             return err()
         return data
 
-    async def regAccount(self, login: str, password: str, mail: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[RegisterData]:
+    async def regAccount(self, login: str, password: str, mail: str, timeout: ClientTimeout | None = None, headers: dict | None = None, proxy: str | None = None, ssl: bool = True) -> RegisterData | None:
         json={
             "entry_query":"Y2xpZW50X2lkPXNhbmtha3Utd2ViLWFwcCZsYW5nPWVuJnJlZGlyZWN0X3VyaT1odHRwcyUzQSUyRiUyRnNhbmtha3UuYXBwJTJGc3NvJTJGY2FsbGJhY2smcmVzcG9uc2VfdHlwZT1jb2RlJnJvdXRlPXJlZ2lzdHJhdGlvbiZzY29wZT1vcGVuaWQmc3RhdGU9cmV0dXJuX3VyaSUzRGh0dHBzJTNBJTJGJTJGc2Fua2FrdS5hcHAlMkZhdXRoJnRoZW1lPXdoaXRlJnRvX3BheW1lbnRzPWZhbHNl",
             "user":{
@@ -234,7 +228,7 @@ class Sankaku(Endpoints):
         logging.info('Registration successful')
         return RegisterData.model_validate(data)
 
-    async def resendVerif(self, headers: dict, timeout: ClientTimeout | None = None, proxy: str | None = None) -> Optional[dict]:
+    async def resendVerif(self, headers: dict, timeout: ClientTimeout | None = None, proxy: str | None = None) -> dict | None:
         data = await self.helper.getJson(self.API_REQUEST_RESEND_VERIFICATION, headers, 'POST', timeout=timeout, proxy=proxy)
         if data is None:
             logging.error('Failed to resend verification code')
@@ -242,22 +236,22 @@ class Sankaku(Endpoints):
         logging.info('Verification code resent successfully')
         return data
 
-    async def getAccountInfo(self, headers: dict, id: str = 'me', timeout: ClientTimeout | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[AccountData]:
+    async def getAccountInfo(self, headers: dict, id: str = 'me', timeout: ClientTimeout | None = None, proxy: str | None = None, ssl: bool = True) -> AccountData | None:
         data = await self.helper.getJson(f'{self.USERS_API_URL}/{id}', headers, timeout=timeout, proxy=proxy, ssl=ssl)
 
         if data is None:
             logging.error('Failed to get account info')
             return None
-        
+
         user = data.get('user')
         if not user or not isinstance(user, dict):
             logging.error('Invalid user data in response')
             return None
-        
+
         logging.info('Account info retrieved successfully')
         return AccountData.model_validate(user)
 
-    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: ClientTimeout | None = None, proxy: str | None = None, ssl: bool = True) -> Optional[AccountData]:
+    async def setAccountInfo(self, headers: dict, id: str, update_data: AccountData, timeout: ClientTimeout | None = None, proxy: str | None = None, ssl: bool = True) -> AccountData | None:
         '''
         Returns data like getAccountInfo
         here dohuya vozmojnogo but i'm too lazy to find it
@@ -285,7 +279,7 @@ class Sankaku(Endpoints):
         logging.info('Account info updated successfully')
         return AccountData.model_validate(user)
 
-    async def favor(self, headers: dict, id: str, isbook: bool, fav: bool = True, timeout: ClientTimeout | None = None) -> Optional[dict]:
+    async def favor(self, headers: dict, id: str, isbook: bool, fav: bool = True, timeout: ClientTimeout | None = None) -> dict | None:
         url = f'{self.API_BOOKS_URL if isbook else self.API_POSTS_URL}/{id}/favorite'
 
         data = await self.helper.getJson(url, headers, 'POST' if fav else 'DELETE')
@@ -301,7 +295,7 @@ class Sankaku(Endpoints):
         if not File.exists():
             logging.error(f'File {File} does not exist')
             return
-        
+
         mime = self.helper.get_mime(File)
         mimet = mime.split('/')
         configs = {
@@ -317,11 +311,11 @@ class Sankaku(Endpoints):
         if mimet[0] not in configs:
             logging.error(f'Unsupported file type: {mime}')
             return
-        
+
         config = configs['video'] if mimet[1] == 'gif' else configs[mimet[0]]
         url = self.API_POSTS_URL if post else config['url']
         fieldName = 'post[file]' if post else config['field']
-        
+
         data = aiohttp.FormData()
         with open(File, 'rb') as f:
             data.add_field(fieldName, f, filename=File.name, content_type=mime)
@@ -335,24 +329,24 @@ class Sankaku(Endpoints):
             resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout)
 
         if resp is None:
-            logging.error(f'API request failed, response is None')
+            logging.error('API request failed, response is None')
             return None
-        
+
         if post:
             return fPostData.model_validate(resp)
         else:
             return TaggingData.model_validate(resp)
-        
-    async def tagMedia(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None) -> Optional[TaggingData]:
+
+    async def tagMedia(self, File: Path | str, headers: dict, timeout: ClientTimeout | None = None) -> TaggingData | None:
         resp = await self._ebaniyFile(File, headers=headers, timeout=timeout)
 
         if resp is None:
-            logging.error(f'Failed to tag')
+            logging.error('Failed to tag')
             return
 
         return TaggingData.model_validate(resp)
 
-    async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: ClientTimeout | None = None) -> Optional[fPostData]:
+    async def postMedia(self, File: Path | str, tags: list, headers: dict, parentID: str = '', rating: str = 'e', timeout: ClientTimeout | None = None) -> fPostData | None:
         tagss = json.dumps([{"name": tag} for tag in tags])
         data = {
             "post[parent_id]": parentID,
@@ -366,28 +360,28 @@ class Sankaku(Endpoints):
         resp = await self._ebaniyFile(File, headers, timeout=timeout, post=True, cdata=data)
 
         if resp is None:
-            logging.error(f'Failed to post')
+            logging.error('Failed to post')
             return
-        
+
         return fPostData.model_validate(resp)
 
-    async def changeAvatar(self, 
-                           userID: str | int, 
-                           postID: str, 
-                           headers: dict, 
-                           left: float = 0, 
-                           right: float = 0, 
-                           top: float = 0, 
-                           bottom: float = 0, 
-                           timeout: ClientTimeout | None = None) -> Optional[dict]:
+    async def changeAvatar(self,
+                           userID: str | int,
+                           postID: str,
+                           headers: dict,
+                           left: float = 0,
+                           right: float = 0,
+                           top: float = 0,
+                           bottom: float = 0,
+                           timeout: ClientTimeout | None = None) -> dict | None:
         url = f'{self.USERS_API_URL}/{userID}/avatar'
-        
+
         json = AvatarModel(post_id=postID, left=left, right=right, top=top, bottom=bottom)
 
         return await self.helper.getJson(url, headers, 'PUT', json.model_dump(), timeout=timeout)
 
 
-    async def getOrCreateCollection(self, data: str | CollectionCreating, timeout: ClientTimeout | None = None, headers: dict | None = None) -> Optional[CollectionData]:
+    async def getOrCreateCollection(self, data: str | CollectionCreating, timeout: ClientTimeout | None = None, headers: dict | None = None) -> CollectionData | None:
         typee = 'retrieve' if isinstance(data, str) else 'create'
         url = self.API_COLLECTIONS_URL
 
@@ -401,7 +395,7 @@ class Sankaku(Endpoints):
         else:
             js = data.model_dump() # type: ignore . typehint is shitty shit
             method = 'POST'
-            
+
         res = await self.helper.getJson(url, headers, timeout=timeout, method=method, json=js)
 
         if res is None:
@@ -433,10 +427,10 @@ class Sankaku(Endpoints):
                             fav_by                 : str      | None      = None,
                             posted_by              : str      | None      = None,
                             hide_posts_in_books    : str      | None      = None,
-                            date_start             : str      | None      = None,   #
+                            date_start             : str      | None      = None,
                             date_end               : str      | None      = None,   # in progress
-                            duration               : str      | None      = None    #
-                          ) -> Optional[SearchData]: 
+                            duration               : str      | None      = None
+                          ) -> SearchData | None:
         if not headers:
             headers = self._headers
 
@@ -472,10 +466,36 @@ class Sankaku(Endpoints):
         data = await self.helper.getJson(url, headers, timeout=timeout)
         if data is None:
             return
-        
+
         return SearchData.model_validate(data)
 
-class Miscs():
+    async def destroyCollection(self, id: str, headers: dict | None = None, timeout: ClientTimeout | None = None) -> suc | None:
+        url = f'{self.API_COLLECTIONS_URL}/{id}/destroy'
+
+        if not headers:
+            headers = self._headers
+
+        r = await self.helper.getJson(url, headers, timeout=timeout, method='DELETE')
+
+        if not r:
+            return None
+
+        return suc.model_validate(r)
+
+    async def addItemToCollection(self, colID: str, data: collectionAddItem, headers: dict | None = None, timeout: ClientTimeout | None = None) -> collectionRemAddResponse | None:
+        url = f'{self.V2API_COLLECTIONS_URL}/{colID}/items'
+
+        if not headers:
+            headers = self._headers
+
+        r = await self.helper.getJson(url, headers, timeout=timeout, method='PUT', json=data.model_dump())
+
+        if not r:
+            return None
+
+        return collectionRemAddResponse.model_validate(r)
+
+class Miscs:
     def calcSoftcap(self, rep: int):
         tbl=[
             (500, 500, 0),
@@ -504,7 +524,7 @@ class Miscs():
 if __name__ == '__main__':
     async def main():
         ''' EXAMPLE FOR BEGINNING!!! '''
-        async with Sankaku() as sankaku: 
+        async with Sankaku() as sankaku:
             token = await sankaku.getRefreshToken('login/mail', 'password')
             if token is None:
                 return

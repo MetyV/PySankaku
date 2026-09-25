@@ -1,9 +1,11 @@
 from pathlib import Path
 from typing import Literal, Optional
-from helper import logger as logging
+
 from aiohttp import ClientTimeout
 
 from helper import Helper as hlp
+from helper import logger as logging
+
 
 class Downloader:
     def __init__(self, stack: bool = False):
@@ -23,7 +25,7 @@ class Downloader:
         r, s = await self.helper.request(url, headers, 'HEAD', json, timeout=timeout)
         if s and s == 200 and r:
             return r
-        return 
+        return
 
     async def getSize(self, url: str, headers: dict = {}, json: dict = {}, timeout: ClientTimeout | None = None) -> Optional[int]:
         r = await self._getHeads(url, headers, json, timeout)
@@ -34,12 +36,12 @@ class Downloader:
         size = r.headers.get('content-length')
         if size:
             return int(size)
-        
+
         return
 
     async def getType(self, url: str, headers: dict = {}, json: dict = {}, timeout: ClientTimeout | None = None) -> Optional[str]:
         r = await self._getHeads(url, headers, json, timeout)
-        
+
         if not r:
             return
 
@@ -47,16 +49,16 @@ class Downloader:
         return type
 
     IF_EXIST = Literal['nothing', 'overwrite', 'resume']
-    async def download(self, 
-                       url: str, 
-                       path: Path | str = '', 
+    async def download(self,
+                       url: str,
+                       path: Path | str = '',
                        name: Path | str = '',
                        extension: Path | str = '', # for Windows kids who can't live without .exe and proprietary software
                        ssl: bool = True,
-                       headers: dict = {}, 
-                       json: dict = {}, 
-                       timeout: ClientTimeout | None = None, 
-                       mkdir: bool = True, 
+                       headers: dict = {},
+                       json: dict = {},
+                       timeout: ClientTimeout | None = None,
+                       mkdir: bool = True,
                        if_exist: IF_EXIST = 'overwrite',
                        chunk_size: int = 1024):
         async def ret(type, val, msg = ''):
@@ -64,7 +66,7 @@ class Downloader:
                 getattr(logging, type)(msg)
             await self.helper._session_close()
             return val
-        
+
         path = self.helper.resolve_path(path)
 
         if not path.exists():
@@ -101,7 +103,7 @@ class Downloader:
 
         if st == 200 and mode == 'ab':
             return await ret('info', False, 'Nope. No rangers here! Change exist mode to overwrite.')
-        
+
         if st == 416:
             return await ret('info', True, 'Server cannot satisfy this range(maybe already downloaded)')
 
@@ -114,5 +116,5 @@ class Downloader:
                 logging.info(f'File downloaded: {fpath}')
                 return await ret('info', True, f'File downloaded: {fpath}')
             return await ret('error', False, 'Failed to download')
-        
+
         return await ret('error', False, 'No response(try to renew your link)')

@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 class AvatarModel(BaseModel):
     post_id: str   = '' # file = False esli chto
     left   : float = 0.0
