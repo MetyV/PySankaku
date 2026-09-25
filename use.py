@@ -15,6 +15,7 @@ from models.registerdata import RegisterData
 from models.taggingdata import TagType, TaggingData, TagData
 
 class ILoveShit:
+    rating = Literal['s', 'q', 'e']
     def __init__(self, idol: bool = False, stack: bool = False):
         self.sankaku = Sankaku(idol, stack)
         self.helper = hlp(stack)
@@ -49,7 +50,7 @@ class ILoveShit:
 
         if not login or not password:
             return self.__nihuyaNet('Login requires login and password!!!')
-        
+
         ref = await self.sankaku.getRefreshToken(login, password, timeout, headers)
         if ref is None:
             return
@@ -68,12 +69,12 @@ class ILoveShit:
         return res.tags
 
     async def postMedia(self, File: Path | str,
-                        token: str = '', 
-                        extraTags: list = [], 
-                        headers: dict | None = None, 
-                        parentID: str = '', 
-                        rating: rating = 'e', 
-                        timeout: ClientTimeout | None = None, 
+                        token: str = '',
+                        extraTags: list = [],
+                        headers: dict | None = None,
+                        parentID: str = '',
+                        rating: rating = 'e',
+                        timeout: ClientTimeout | None = None,
                         tags: list = []) -> Optional[fPostData]:
         headers = self._chckTK(headers, token)
 
@@ -91,20 +92,20 @@ class ILoveShit:
 
         if res is None:
             return
-            
+
         return fPostData.model_validate(res)
 
     CollectionDlMode = Literal['post', 'pool', 'series']
-    async def downloadCollection(self, 
-                                url: str, 
+    async def downloadCollection(self,
+                                url: str,
                                 dlMode: CollectionDlMode = 'post',
-                                token: str = '', 
-                                headers: dict = {}, 
-                                quality: Sankaku.QualityType = 0, 
-                                path: Path | str = '', 
-                                name: Path | str = '', 
-                                extension: bool = True, 
-                                ssl: bool = True,  
+                                token: str = '',
+                                headers: dict = {},
+                                quality: Sankaku.QualityType = 0,
+                                path: Path | str = '',
+                                name: Path | str = '',
+                                extension: bool = True,
+                                ssl: bool = True,
                                 json: dict = {},
                                 mkdir: bool = True,
                                 if_exist: Downloader.IF_EXIST = 'overwrite',
@@ -130,11 +131,11 @@ class ILoveShit:
         st = sts.get(dlMode)
         if not st:
             return
-        
+
         TIDS = await st(url, token, headers, timeout)
         if not TIDS:
             return
-        
+
         async def ddl(IDS, tpath):
             for i in custom_indexes if custom_indexes else range(len(IDS)):
                 a = await self.downloadPost(IDS[i], token, headers, quality, tpath, name, extension, ssl, json, mkdir, if_exist, chunk_size, suffix, f'{i} ', timeout)
@@ -202,7 +203,6 @@ class ILoveShit:
 
         return headers
 
-    rating = Literal['s', 'q', 'e']
     def getMediaRating(self, tags: list[TagData], forceE: bool = False) -> Optional[rating]:
         r = None
         for tag in tags:
@@ -213,7 +213,7 @@ class ILoveShit:
                     r='q'
                 case 'GelR09GqMgK':
                     r='s'
-                
+
         MASK = {'lb8aJDKR2L1', '36dMpeqQaxj', 'QjXajQGM2P7'}
         if forceE:
             tag_ids = {tag.id for tag in tags}
@@ -235,15 +235,15 @@ class ILoveShit:
 
         return pt
 
-    async def downloadPost(self, 
-                           url: str, 
-                           token: str = '', 
-                           headers: dict = {}, 
-                           quality: Sankaku.QualityType = 0, 
-                           path: Path | str = '', 
-                           name: Path | str = '', 
-                           extension: bool = True, 
-                           ssl: bool = True,  
+    async def downloadPost(self,
+                           url: str,
+                           token: str = '',
+                           headers: dict = {},
+                           quality: Sankaku.QualityType = 0,
+                           path: Path | str = '',
+                           name: Path | str = '',
+                           extension: bool = True,
+                           ssl: bool = True,
                            json: dict = {},
                            mkdir: bool = True,
                            if_exist: Downloader.IF_EXIST = 'overwrite',
@@ -280,7 +280,7 @@ class ILoveShit:
                 if_exist,
                 chunk_size
             )
-    
+
     #async def getPostData(self, id, headers, )
 
     #async def favorPost(self,) # in future
@@ -302,7 +302,7 @@ if __name__ == '__main__':
 
         # l=[str(file) for file in folder.iterdir() if file.is_file()]
         # err=[]
-        
+
         # for post in l:
         #     ttags = await fp.tagMedia(post, token=tk, headers=headers)
         #     if ttags is None:

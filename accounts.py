@@ -16,7 +16,7 @@ class accounts:
         for acc_id, acc_data in accounts.items():
             acc_login = acc_data.get('login', '')
             acc_mail = acc_data.get('mail', '')
-            
+
             if (login and acc_login == login) or (mail and acc_mail == mail):
                 existing_id = acc_id
                 break
@@ -46,12 +46,12 @@ class accounts:
 
             if all:
                 return data
-            
+
             for acc_id, acc_data in data.items():
                 acc_login = acc_data.get('login', '')
                 acc_mail = acc_data.get('mail', '')
                 acc_token = acc_data.get('token', '')
-                
+
                 if (login and (acc_login == login or acc_mail == login)) or \
                 (mail and acc_mail == mail) or \
                 (token and acc_token == token):
