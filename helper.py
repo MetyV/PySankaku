@@ -243,7 +243,7 @@ class Helper:
                 if cn != root: lines.append('')
             f.write('\n'.join(lines))
 
-    def parse_har_to_endpoints(self, file: Path, domains: list = [], incPayload: bool = True, incResponse: bool = True) -> Optional[str]:
+    def parse_har_to_endpoints(self, file: Path, domains: list = [], incPayload: bool = True, incResponse: bool = True) -> Optional[dict]:
         '''
         domains may contain full url or endpoint(/post) or domain
         '''
@@ -340,4 +340,4 @@ class Helper:
                 )
             )
 
-        return res.model_dump_json()
+        return res.model_dump()

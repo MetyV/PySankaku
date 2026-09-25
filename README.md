@@ -18,6 +18,9 @@ I'm actively working on the API. Everything else (downloader, use.py, etc.) is s
 - [x] Avatar changer
 - [x] Post searching
 - [x] Downloader
+- [x] Creating collections
+- [x] Posts/Books/Collections data
+- [x] Softcap reputation calculator
 - [ ] Get comments
 - [ ] Add comments
 - [ ] Edit comments

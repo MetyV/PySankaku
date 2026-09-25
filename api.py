@@ -10,7 +10,7 @@ import aiohttp
 from yarl import URL
 
 from models.bookdata import BookData
-from models.collectiondata import CollectionData
+from models.collectiondata import CollectionData, CollectionCreating
 from models.postdata import PostData, PostTagsData, fPostData
 from models.accountdata import AccountData
 from models.avatar import AvatarModel
@@ -459,6 +459,24 @@ class Sankaku(Endpoints):
             return
         
         return SearchData.model_validate(data)
+
+    async def createCollection(self, data = CollectionCreating, headers: dict | None = None, timeout: ClientTimeout | None = None) -> Optional[CollectionData]:
+        url = self.API_COLLECTIONS_URL
+
+        if not headers:
+            headers = self._headers
+
+        res = await self.helper.getJson(url, headers, timeout=timeout)
+
+        if res is None:
+            logging.error(f'Failed to create collection.')
+            return
+
+        data = CollectionData.model_validate(res)
+
+        logging.info(f'Created collection {data.id}')
+
+        return data
 
 class Miscs():
     def calcSoftcap(self, rep: int):

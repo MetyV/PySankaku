@@ -18,7 +18,6 @@ class ILoveShit:
     def __init__(self, idol: bool = False, stack: bool = False):
         self.sankaku = Sankaku(idol, stack)
         self.helper = hlp(stack)
-        self.i = False
 
     def __nihuyaNet(self, message) -> None:
         logging.error(message)
