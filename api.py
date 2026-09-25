@@ -14,7 +14,12 @@ from helper import logger as logging
 from models.accountdata import AccountData
 from models.avatar import AvatarModel
 from models.bookdata import BookData
-from models.collectiondata import CollectionCreating, CollectionData, collectionAddItem, collectionRemAddResponse
+from models.collectiondata import (
+    CollectionCreating,
+    CollectionData,
+    collectionAddItem,
+    collectionRemAddResponse,
+)
 from models.postdata import PostData, PostTagsData, fPostData
 from models.registerdata import RegisterData
 from models.searchdata import SearchData
@@ -317,9 +322,8 @@ class Sankaku(Endpoints):
         fieldName = 'post[file]' if post else config['field']
 
         data = aiohttp.FormData()
-        with open(File, 'rb') as f:
+        with open(File, "rb") as f:  # async compatible in future
             data.add_field(fieldName, f, filename=File.name, content_type=mime)
-
             if cdata:
                 for key, value in cdata.items():
                     if not value:
@@ -413,24 +417,25 @@ class Sankaku(Endpoints):
         if value is not None:
             parts.append(fmt.format(key, value))
 
-    async def searchPosts(self,
-                            timeout                : ClientTimeout | None = None,
-                            headers                : dict                 = {},
-                            tags                   : list          | None = None,
-                            nextH                  : str           | None = None,
-                            rating                 : str           | None = None,
-                            order                  : str           | None = None,
-                            threshold              : int                  = 0,
-                            page                   : int                  = 1,
-                            file_type              : str      | None      = None,
-                            voted_by               : str      | None      = None,
-                            fav_by                 : str      | None      = None,
-                            posted_by              : str      | None      = None,
-                            hide_posts_in_books    : str      | None      = None,
-                            date_start             : str      | None      = None,
-                            date_end               : str      | None      = None,   # in progress
-                            duration               : str      | None      = None
-                          ) -> SearchData | None:
+    async def searchPosts(
+        self,
+        timeout: ClientTimeout | None = None,
+        headers: dict | None = None,
+        tags: list | None = None,
+        nextH: str | None = None,
+        rating: str | None = None,
+        order: str | None = None,
+        threshold: int = 0,
+        page: int = 1,
+        file_type: str | None = None,
+        voted_by: str | None = None,
+        fav_by: str | None = None,
+        posted_by: str | None = None,
+        hide_posts_in_books: str | None = None,
+        date_start: str | None = None,
+        date_end: str | None = None,  # in progress
+        duration: str | None = None,
+    ) -> SearchData | None:
         if not headers:
             headers = self._headers
 
