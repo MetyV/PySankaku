@@ -511,6 +511,28 @@ class Sankaku(Endpoints):
         return collectionRemAddResponse.model_validate(r)
 
 class Miscs:
+    def __init__(self):
+        tempREPUTATION_REQUIREMENTS = [
+            (0, 1, 1000),
+            (1, 2, 1500),
+            (2, 3, 2500),
+            (3, 4, 5000),
+            (4, 5, 10000),
+            (5, 9, 15000),
+            (9, 20, 20000),
+            (20, 30, 30000),
+            (30, 40, 40000),
+            (40, 49, 100000),
+            (49, 50, 125000),  # i can't find user with 49lvl
+            (50, 54, 150000),
+            (54, 55, 400000),
+            (55, 57, 500000),
+            (57, 58, 1000000),
+            (58, 59, 2000000),
+            (59, 60, 3000000),
+            (60, 64, 6500000),  # same as (49,50)
+            (64, 66, 10000000),
+        ]
     def calcSoftcap(self, rep: int):
         tbl=[
             (500, 500, 0),
@@ -552,9 +574,3 @@ if __name__ == '__main__':
             # YOUR CODE
 
     asyncio.run(main())
-
-
-'''
-10-11 - 20000
-
-'''
