@@ -547,7 +547,7 @@ if __name__ == '__main__':
             if token is None:
                 return
 
-            headers = sankaku.headers(token)
+            headers = sankaku.headers(token=token)
 
             # YOUR CODE
 
