@@ -1,6 +1,7 @@
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
+import aiofiles
 from aiohttp import ClientTimeout
 
 from helper import Helper as hlp
@@ -21,13 +22,25 @@ class Downloader:
     def getName(self, url: str) -> str:
         return self.helper.get_filename_from_url(url)
 
-    async def _getHeads(self, url: str, headers: dict = {}, json: dict = {}, timeout: ClientTimeout | None = None):
+    async def _getHeads(
+        self,
+        url: str,
+        headers: dict,
+        json: dict | None = None,
+        timeout: ClientTimeout | None = None,
+    ):
         r, s = await self.helper.request(url, headers, 'HEAD', json, timeout=timeout)
         if s and s == 200 and r:
             return r
         return
 
-    async def getSize(self, url: str, headers: dict = {}, json: dict = {}, timeout: ClientTimeout | None = None) -> Optional[int]:
+    async def getSize(
+        self,
+        url: str,
+        headers: dict,
+        json: dict | None = None,
+        timeout: ClientTimeout | None = None,
+    ) -> int | None:
         r = await self._getHeads(url, headers, json, timeout)
 
         if not r:
@@ -39,7 +52,13 @@ class Downloader:
 
         return
 
-    async def getType(self, url: str, headers: dict = {}, json: dict = {}, timeout: ClientTimeout | None = None) -> Optional[str]:
+    async def getType(
+        self,
+        url: str,
+        headers: dict,
+        json: dict | None = None,
+        timeout: ClientTimeout | None = None,
+    ) -> str | None:
         r = await self._getHeads(url, headers, json, timeout)
 
         if not r:
@@ -49,18 +68,22 @@ class Downloader:
         return type
 
     IF_EXIST = Literal['nothing', 'overwrite', 'resume']
-    async def download(self,
-                       url: str,
-                       path: Path | str = '',
-                       name: Path | str = '',
-                       extension: Path | str = '', # for Windows kids who can't live without .exe and proprietary software
-                       ssl: bool = True,
-                       headers: dict = {},
-                       json: dict = {},
-                       timeout: ClientTimeout | None = None,
-                       mkdir: bool = True,
-                       if_exist: IF_EXIST = 'overwrite',
-                       chunk_size: int = 1024):
+
+    async def download(
+        self,
+        url: str,
+        headers: dict,
+        path: Path | str = "",
+        name: Path | str = "",
+        extension: Path
+        | str = "",  # for Windows kids who can't live without .exe and proprietary software
+        ssl: bool = True,
+        json: dict | None = None,
+        timeout: ClientTimeout | None = None,
+        mkdir: bool = True,
+        if_exist: IF_EXIST = "overwrite",
+        chunk_size: int = 1024,
+    ):
         async def ret(type, val, msg = ''):
             if msg:
                 getattr(logging, type)(msg)
@@ -108,9 +131,9 @@ class Downloader:
             return await ret('info', True, 'Server cannot satisfy this range(maybe already downloaded)')
 
         if r:
-            with open(fpath, mode) as f:
+            async with aiofiles.open(fpath, mode) as f:
                 async for chunk in r.content.iter_chunked(chunk_size):
-                    f.write(chunk)
+                    await f.write(chunk)
 
             if st in (200, 206):
                 logging.info(f'File downloaded: {fpath}')
