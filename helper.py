@@ -69,12 +69,14 @@ class Helper:
             return parsed.path
         return Path(parsed.path).stem
 
-    def _stack(self,
-                method: str,
-                url: str,
-                headers: dict = {},
-                json: dict | None = None,
-                data = None):
+    def _stack(
+        self,
+        method: str,
+        url: str,
+        headers: dict | None = None,
+        json: dict | None = None,
+        data=None,
+    ):
 
         logger.info("─ REQUEST ─")
         logger.info(f"│ Method: {method}")
@@ -156,15 +158,18 @@ class Helper:
 
         return (None, None)
 
-    async def getJson(self,
-                      url: str,
-                      headers: dict,
-                      method: str = 'GET',
-                      json: dict = {},
-                      data: FormData | None = None,
-                      timeout: ClientTimeout | None = None,
-                      retries: int = 1, proxy = None,
-                      ssl: bool = True) -> dict | None:
+    async def getJson(
+        self,
+        url: str,
+        headers: dict,
+        method: str = "GET",
+        json: dict | None = None,
+        data: FormData | None = None,
+        timeout: ClientTimeout | None = None,
+        retries: int = 1,
+        proxy=None,
+        ssl: bool = True,
+    ) -> dict | None:
         def printErr():
             logger.error('Json data fetch failed')
 
@@ -260,7 +265,13 @@ class Helper:
                 if cn != root: lines.append('')
             f.write('\n'.join(lines))
 
-    def parse_har_to_endpoints(self, file: Path, domains: list = [], incPayload: bool = True, incResponse: bool = True) -> dict | None:
+    def parse_har_to_endpoints(
+        self,
+        file: Path,
+        domains: list | None = None,
+        incPayload: bool = True,
+        incResponse: bool = True,
+    ) -> dict | None:
         '''
         domains may contain full url or endpoint(/post) or domain
         '''
