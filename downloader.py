@@ -82,7 +82,7 @@ class Downloader:
         timeout: ClientTimeout | None = None,
         mkdir: bool = True,
         if_exist: IF_EXIST = "overwrite",
-        chunk_size: int = 1024,
+        chunk_size: int = 65536,
     ):
         async def ret(type, val, msg = ''):
             if msg:

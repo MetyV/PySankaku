@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlencode, urlparse
 
+import aiofiles
 import aiohttp
 from aiohttp import ClientTimeout
 
@@ -323,15 +324,28 @@ class Sankaku(Endpoints):
         fieldName = 'post[file]' if post else config['field']
 
         data = aiohttp.FormData()
-        with open(File, "rb") as f:  # async compatible in future
-            data.add_field(fieldName, f, filename=File.name, content_type=mime)
-            if cdata:
-                for key, value in cdata.items():
-                    if not value:
-                        continue
-                    data.add_field(key, str(value))
+        async with aiofiles.open(File, "rb") as f:
+            content = await f.read()
 
-            resp = await self.helper.getJson(url, headers, 'POST', data=data, timeout=timeout, retries=retries, proxy=proxy, ssl=ssl)
+        data = aiohttp.FormData()
+        data.add_field(fieldName, content, filename=File.name, content_type=mime)
+
+        if cdata:
+            for key, value in cdata.items():
+                if not value:
+                    continue
+                data.add_field(key, str(value))
+
+        resp = await self.helper.getJson(
+            url,
+            headers,
+            "POST",
+            data=data,
+            timeout=timeout,
+            retries=retries,
+            proxy=proxy,
+            ssl=ssl,
+        )
 
         if resp is None:
             logging.error('API request failed, response is None')
