@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import asyncio
 import json
 from pathlib import Path
 from urllib.parse import urlparse
@@ -139,14 +140,20 @@ class Helper:
                     case 500:return printErr('Internal error') # if you see it more than 5 times, it'll be: real error, shitty code/args or near site reboot
                     case 502:return printErr('Bad gateway')
                     case 503:return printErr('Service unavailable')
-                    case 504:return printErr('Timeout')
+                    case 504:
+                        if i < retries:
+                            await asyncio.sleep(2)
+                        else:
+                            return printErr("Timeout")
                 return (r, st)
             except Exception as e:
                 if i < retries:
                     logger.warning(f'Request error: attempt {i+1}/{retries} - {e}')
+                    await asyncio.sleep(5)
                 else:
                     logger.error(f'Request failed after {retries} attempts: {e}')
                     return (None, None)
+
         return (None, None)
 
     async def getJson(self,
