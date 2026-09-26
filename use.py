@@ -55,7 +55,7 @@ class ILoveShit:
     ) -> tuple[str, bool] | None:
         newToken = False
         if token:
-            headers = self.sankaku.headers(token)
+            headers = self.sankaku.headers(headers, token)
             t = await self.sankaku.getAccountInfo(headers)
             if t:
                 return (token, False)
@@ -77,7 +77,7 @@ class ILoveShit:
         self,
         File: Path | str,
         token: str = "",
-        headers: dict = {},
+        headers: dict | None = None,
         timeout: ClientTimeout | None = None,
     ) -> list[TagData] | None:
         headers = self._chckTK(headers, token)
@@ -248,10 +248,7 @@ class ILoveShit:
         return (headers, data)
 
     def _chckTK(self, headers: dict | None = None, token: str | None = None) -> dict:
-        if not headers:
-            headers = self.sankaku.headers(token) if token else self.sankaku._headers.copy()
-
-        return headers
+        return self.sankaku.headers(headers, token)
 
     def getMediaRating(
         self, tags: list[TagData], forceE: bool = False
@@ -351,7 +348,7 @@ if __name__ == '__main__':
         #     return
         # tk=tk[0]
 
-        # headers = fp.sankaku.headers(tk)
+        # headers = fp.sankaku.headers(token=tk)
 
         # folder = Path("X")
         # extratags = ['']

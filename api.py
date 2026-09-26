@@ -50,8 +50,7 @@ class Sankaku(Endpoints):
 
         logging.info('Retrieving refresh token...')
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         data = await self.helper.getJson(self.LOGIN_REFRESH_TOKEN, headers, 'POST', {
                 "login":login,
@@ -77,8 +76,7 @@ class Sankaku(Endpoints):
 
         logging.info('Retrieving token...')
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         data = await self.helper.getJson(self.TOKEN_EXCHANGE, headers, 'POST', {
             "access_token":refToken,
@@ -98,12 +96,13 @@ class Sankaku(Endpoints):
 
         return token
 
-    def headers(self, token: str, headers: dict | None = None) -> dict:
+    def headers(self, headers: dict | None = None, token: str | None = None) -> dict:
         '''
         ya leniviy, tak chto on self doing this auth shit
         '''
-        headers = self._headers.copy() if not headers else headers.copy()
-        headers['Authorization'] = f'Bearer {token}'
+        headers = headers.copy() if headers else self._headers.copy()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         return headers
 
     def getPostID(self, url: str) -> str:
@@ -126,8 +125,7 @@ class Sankaku(Endpoints):
         def err():
             logging.error(f'Failed to retrieve post {id} file URL with {quality} quality.')
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         url = f'{self.API_POSTS_URL}/{id}/fu'
         data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy, ssl=ssl)
@@ -159,8 +157,7 @@ class Sankaku(Endpoints):
         def err():
             logging.error(f'Failed to retrieve book {id} data.')
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         url = f'{self.API_BOOKS_URL}/{id}'
         data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy, ssl=ssl)
@@ -172,8 +169,7 @@ class Sankaku(Endpoints):
         def err():
             logging.error(f'Failed to retrieve post {id} data.')
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         url = f'{self.BASE_API_URL}/v2/posts?&page=1&limit=1&default_threshold=0&tags=id_range:{id}'
         data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy, ssl=ssl)
@@ -185,8 +181,8 @@ class Sankaku(Endpoints):
     async def getPostTags(self, id, timeout: ClientTimeout | None = None, headers: dict | None = None, page: int = 1, limit: int = 200, retries: int = 2, proxy: str | None = None, ssl: bool = True) -> PostTagsData | None:
         def err():
             logging.error(f'Failed to retrieve post {id} tags.')
-        if not headers:
-                headers = self._headers
+
+        headers = self.headers(headers)
 
         url = f'{self.API_POSTS_URL}/{id}/tags?page={page}&limit={limit}'
         data = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy, ssl=ssl)
@@ -202,8 +198,7 @@ class Sankaku(Endpoints):
         def err():
             logging.error(f'Failed to vote: {id}.')
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         method = 'PUT' if vote > 0 else 'DELETE'
 
@@ -224,8 +219,7 @@ class Sankaku(Endpoints):
             "lang":"en"
             }
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         data = await self.helper.getJson(self.REGISTER_API_URL, headers, 'POST', json, timeout=timeout, retries=retries, proxy=proxy, ssl=ssl)
         if data is None:
@@ -323,7 +317,6 @@ class Sankaku(Endpoints):
         url = self.API_POSTS_URL if post else config['url']
         fieldName = 'post[file]' if post else config['field']
 
-        data = aiohttp.FormData()
         async with aiofiles.open(File, "rb") as f:
             content = await f.read()
 
@@ -407,8 +400,7 @@ class Sankaku(Endpoints):
         typee = 'retrieve' if isinstance(data, str) else 'create'
         url = self.API_COLLECTIONS_URL
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         method = 'GET'
         js={}
@@ -457,8 +449,7 @@ class Sankaku(Endpoints):
         proxy: str | None = None,
         ssl: bool = True,
     ) -> SearchData | None:
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         ttags = []
         self._add_param(ttags, 'threshold', threshold)
@@ -498,8 +489,7 @@ class Sankaku(Endpoints):
     async def destroyCollection(self, id: str, headers: dict | None = None, timeout: ClientTimeout | None = None, retries: int = 2, proxy: str | None = None, ssl: bool = True) -> suc | None:
         url = f'{self.API_COLLECTIONS_URL}/{id}/destroy'
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         r = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy, ssl=ssl, method='DELETE')
 
@@ -511,8 +501,7 @@ class Sankaku(Endpoints):
     async def addItemToCollection(self, colID: str, data: collectionAddItem, headers: dict | None = None, timeout: ClientTimeout | None = None, retries: int = 2, proxy: str | None = None, ssl: bool = True) -> collectionRemAddResponse | None:
         url = f'{self.V2API_COLLECTIONS_URL}/{colID}/items'
 
-        if not headers:
-            headers = self._headers
+        headers = self.headers(headers)
 
         r = await self.helper.getJson(url, headers, timeout=timeout, retries=retries, proxy=proxy, ssl=ssl, method='PUT', json=data.model_dump())
 
