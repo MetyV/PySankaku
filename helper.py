@@ -145,6 +145,7 @@ class Helper:
                     case 504:
                         if i < retries:
                             await asyncio.sleep(2)
+                            continue
                         else:
                             return printErr("Timeout")
                 return (r, st)
