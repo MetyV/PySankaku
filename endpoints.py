@@ -19,6 +19,6 @@ class Endpoints:
         self.API_COLLECTIONS_URL = f'{self.BASE_API_URL}/collections'
         self.V2API_COLLECTIONS_URL = f'{self.BASE_API_URL}/v2/collections'
 
-'''
+"""
 
-'''
+"""

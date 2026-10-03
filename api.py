@@ -9,6 +9,7 @@ from urllib.parse import urlencode, urlparse
 import aiofiles
 import aiohttp
 from aiohttp import ClientTimeout
+from fake_useragent import UserAgent
 
 from endpoints import *
 from helper import Helper as hlp
@@ -28,14 +29,22 @@ from models.searchdata import SearchData
 from models.suc import suc
 from models.taggingdata import TaggingData
 
+ua = UserAgent()
+
 
 class Sankaku(Endpoints):
     '''
     Maybe rabotaet with idol. I'll check it potom.
     '''
-    def __init__(self, idol: bool = False, stack: bool = False):
+
+    def __init__(
+        self,
+        idol: bool = False,
+        stack: bool = False,
+        default_user_agent: str | None = None,
+    ):
         super().__init__(idol)
-        self._headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0'}
+        self._headers = {"User-Agent": default_user_agent or ua.random}
         self.helper = hlp(stack)
 
     async def __aenter__(self):
