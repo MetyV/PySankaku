@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urlencode, urlparse
 
 import aiofiles
@@ -423,7 +424,21 @@ class Sankaku(Endpoints):
 
         return dat
 
-    def _add_param(self, parts: list, key: str, value: str | int | None, fmt: str = "{}:{}"):
+    def _add_param(
+        self,
+        parts: list,
+        key: str,
+        value: Any,
+        fmt: str = "{}:{}",
+    ):
+        match value:
+            case datetime():
+                value = value.strftime("%Y-%m-%dT%H:%M")
+            case tuple():
+                value = "..".join(
+                    v.strftime("%Y-%m-%dT%H:%M") if isinstance(v, datetime) else str(v)
+                    for v in value
+                )
         if value is not None:
             parts.append(fmt.format(key, value))
 
@@ -442,9 +457,9 @@ class Sankaku(Endpoints):
         fav_by: str | None = None,
         posted_by: str | None = None,
         hide_posts_in_books: str | None = None,
-        date_start: str | None = None,
-        date_end: str | None = None,  # in progress
-        duration: str | None = None,
+        date_start: datetime | None = None,
+        date_end: datetime | None = None,
+        duration: tuple[int, int] | None = None,
         retries: int = 2,
         proxy: str | None = None,
         ssl: bool = True,
@@ -459,8 +474,14 @@ class Sankaku(Endpoints):
         self._add_param(ttags, 'user', posted_by)
         self._add_param(ttags, 'order', order)
         self._add_param(ttags, 'rating', rating)
+        self._add_param(ttags, "duration", duration)
         if tags:
             ttags.extend(tags)
+
+        if date_start and date_end:
+            self._add_param(ttags, "date", (date_start, date_end))
+        elif date_start or date_end:
+            self._add_param(ttags, "date", date_start or date_end)
 
         tg = "+".join(ttags) if ttags else ""
 
@@ -470,6 +491,7 @@ class Sankaku(Endpoints):
             'page': page,
             'tags': tg
         }
+
         if hide_posts_in_books is not None:
             params['hide_posts_in_books'] = hide_posts_in_books
         if nextH:
@@ -534,7 +556,7 @@ class Miscs:
             (64, 66, 10000000),
         ]
     def calcSoftcap(self, rep: int):
-        tbl=[
+        tbl = [  # step, to, percent consumption per step
             (500, 500, 0),
             (50, 1000, 1),
             (100, 1500, 2),
@@ -542,8 +564,8 @@ class Miscs:
             (100, 2400, 10),
             (100, 3800, 1),
             (200, 4000, 1),
-            (1000, 7000, 1)
-            ]
+            (1000, 7000, 1),
+        ]
         total = 0
         repf = 0
         perc = 100
