@@ -309,6 +309,9 @@ class Sankaku(Endpoints):
 
         mime = self.helper.get_mime(File)
         mimet = mime.split('/')
+        if mimet[0] == "octet-stream":
+            logging.info(f"Skipping folder")
+            return
         configs = {
             'image': {
                 'url': f'{self.API_POSTS_URL}/tagging_image',
@@ -378,6 +381,10 @@ class Sankaku(Endpoints):
             "post[pool_id]": "",
             "post[reupload_post_id]": ""
         }
+
+        if len(tagss) < 20:
+            logging.error(f"Not enough tags: got {len(tagss)} of 20\ntags={tagss}")
+            return
 
         resp = await self._ebaniyFile(File, headers, timeout=timeout, post=True, cdata=data, retries=retries, proxy=proxy, ssl=ssl)
 

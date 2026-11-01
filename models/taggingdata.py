@@ -2,26 +2,26 @@
 from enum import IntEnum
 
 from pydantic import BaseModel, Field
-from typing import Optional
+
 
 class TaggingData(BaseModel):
-    success : Optional[bool]          = Field(None, description="")
-    tags    : Optional[list[TagData]] = Field(None, description="")
+    success: bool | None = Field(None, description="")
+    tags: list[TagData] | None = Field(None, description="")
 
 class TagData(BaseModel):
-    id               : Optional[str]     = Field(None, description="")
-    name             : Optional[str]     = Field(None, description="")
-    name_en          : Optional[str]     = Field(None, description="")
-    name_ja          : Optional[str]     = Field(None, description="")
-    type             : Optional[TagType] = Field(None, description="")
-    count            : Optional[int]     = Field(None, description="")
-    post_count       : Optional[int]     = Field(None, description="")
-    pool_count       : Optional[int]     = Field(None, description="")
-    companion_count  : Optional[int]     = Field(None, description="")
-    series_count     : Optional[int]     = Field(None, description="")
-    rating           : Optional[str]     = Field(None, description="")
-    tag_translations: Optional[list]     = Field(None, description="")
-    similarity       : Optional[float]   = Field(None, description="")
+    id: str | int = Field(None, description="")
+    name: str | None = Field(None, description="")
+    name_en: str | None = Field(None, description="")
+    name_ja: str | None = Field(None, description="")
+    type: TagType | None = Field(None, description="")
+    count: int | None = Field(None, description="")
+    post_count: int | None = Field(None, description="")
+    pool_count: int | None = Field(None, description="")
+    companion_count: int | None = Field(None, description="")
+    series_count: int | None = Field(None, description="")
+    rating: str | None = Field(None, description="")
+    tag_translations: list | None = Field(None, description="")
+    similarity: float | None = Field(None, description="")
 
 class TagType(IntEnum):
     General   = 0
