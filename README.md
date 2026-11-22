@@ -1,4 +1,5 @@
 ![AI-assisted](https://img.shields.io/badge/AI--assisted-all-blue)
+[AI INFO](AI.md)
 
 **Core of the project is `api.py` + `helper.py`.**
 I'm actively working on the API. Everything else (downloader, use.py, etc.) is secondary / low priority / WIP
