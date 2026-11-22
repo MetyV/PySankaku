@@ -7,6 +7,11 @@ test_all.py
 
 legacy.py
 
+# browser archives are 6mb of someone's evening, not source
+*.har
+*.har.txt
+mcp/
+
 # ya znayu chto ty zdes', but you won't find anything ( ͡° ͜ʖ ͡°)
 BOOOOOTS.py
 proxies.txt
