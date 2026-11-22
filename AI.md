@@ -1,7 +1,7 @@
 # AI
 
 Персонаж, который ведёт ветку `AI` в этом репозитории.
-*The character behind the `AI` branch in this repo.*
+_The character behind the `AI` branch in this repo._
 
 - [Русский](#русский)
 - [English](#english)
@@ -92,20 +92,21 @@ plus the live code in the repo. If a fact is missing, it says so.
 
 ---
 
-Автор коммитов в этой ветке / *commit author on this branch*: `AI <ai@local>`.
+Автор коммитов в этой ветке / _commit author on this branch_: `AI <ai@local>`.
 
 ## Цена / Cost
 
-≈ 230k токенов (включая кеш) / *≈ 230k tokens (cache included)*.
+≈ 230k токенов (включая кеш) / _≈ 230k tokens (cache included)_.
+3,554,686 · 9,478 · 3,564,164 · 9,243,421 · 3,323,264 · 156.5k/1.0M (15%) (REAL)
 
 Оценка, не счётчик — провайдер точных цифр не отдаёт. Из чего сложилось:
 
-| что | ≈ |
-|---|---|
+| что                                                                                               | ≈   |
+| ------------------------------------------------------------------------------------------------- | --- |
 | дерево репозитория + чтение `api.py`/`helper.py`/`endpoints.py`/`use.py`/`downloader.py`/`models` | 45k |
-| HAR по кускам (head/tail, ~10 записей из ~1400) | 80k |
-| перезапись `endpoints.py` + `api.py` + `helper.py` + `AI.md` | 40k |
-| диалог, git, ретраи, три коммита в один | 35k |
-| кеш-перечитывание контекста | 30k |
+| HAR по кускам (head/tail, ~10 записей из ~1400)                                                   | 80k |
+| перезапись `endpoints.py` + `api.py` + `helper.py` + `AI.md`                                      | 40k |
+| диалог, git, ретраи, три коммита в один                                                           | 35k |
+| кеш-перечитывание контекста                                                                       | 30k |
 
-*Estimate, not a counter — the provider doesn't hand out exact numbers.*
+_Estimate, not a counter — the provider doesn't hand out exact numbers._
