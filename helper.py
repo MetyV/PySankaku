@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -193,78 +194,179 @@ class Helper:
         except puremagic.PureError:
             return "application/octet-stream"
 
-    def guess_type(self, value: str):
+    def guess_type(self, value):
         if value is None:
-            return 'str'
-        if isinstance(value, dict):
-            return 'dict'
+            return "Any"
+        if type(value) is str:
+            return "bool" if value.lower() in ("true", "false") else "str"
+        return type(value).__name__
 
-        if isinstance(value, list):
-            return 'list'
-
-        if isinstance(value, bool):
-            return 'bool'
-
-        if isinstance(value, int):
-            return 'int'
-
-        if isinstance(value, float):
-            return 'float'
-        if value.lower() in ('none', 'null', ''):
-            return 'str'
-        if value.lower() in ('true', 'false'):
-            return 'bool'
-        try:
-            int(value)
-            return 'int'
-        except ValueError:
-            pass
-        try:
-            float(value)
-            return 'float'
-        except ValueError:
-            pass
-        return 'str'
-
-    def jsonToPydantic(self, name: str, js: dict, path: Path | None = None, allOptional: bool = False):
-        # here's some AI work
+    def jsonToPydantic(
+        self, name: str, js, path: Path | None = None, allOptional: bool = False
+    ):
         path = path or Path(__file__).parent
         name = name if name.endswith('.py') else f'{name}.py'
         file_path = path / name
-        classes = {}
+        classes: dict = {}
 
-        def t(v):
-            if v is None: return 'Any'
-            if isinstance(v, bool): return 'bool'
-            if isinstance(v, int): return 'int'
-            if isinstance(v, float): return 'float'
-            return 'str'
+        KW = frozenset(
+            (
+                "class",
+                "def",
+                "if",
+                "else",
+                "elif",
+                "for",
+                "while",
+                "return",
+                "import",
+                "from",
+                "in",
+                "is",
+                "not",
+                "and",
+                "or",
+                "None",
+                "True",
+                "False",
+                "lambda",
+                "with",
+                "as",
+                "try",
+                "except",
+                "finally",
+                "raise",
+                "yield",
+                "assert",
+                "del",
+                "global",
+                "nonlocal",
+                "pass",
+                "break",
+                "continue",
+                "async",
+                "await",
+            )
+        )
+        IDENT_RE = re.compile(r"[A-Za-z_]\w*\Z")
+        NONWORD_RE = re.compile(r"\W")
+        MISS = object()
+        guess = self.guess_type
+        cap = str.capitalize
 
-        def gen(cn, d):
-            if cn in classes: return cn
+        def gen(cn: str, d) -> str:
+            if cn in classes:
+                return cn
+            classes[cn] = None
+
+            if isinstance(d, list):
+                merged: dict = {}
+                for item in d:
+                    if not isinstance(item, dict):
+                        continue
+                    stack = [(merged, item)]
+                    while stack:
+                        dst, src = stack.pop()
+                        for kk, vv in src.items():
+                            cur = dst.get(kk, MISS)
+                            if cur is MISS:
+                                dst[kk] = vv
+                            elif type(cur) is dict and type(vv) is dict:
+                                stack.append((cur, vv))
+                            elif type(cur) is list and type(vv) is list:
+                                cur.extend(vv)
+                d = merged
+
+            if not isinstance(d, dict) or not d:
+                classes[cn] = [f"class {cn}(BaseModel):", "    pass"]
+                return cn
+
             flds = []
             for k, v in d.items():
-                if isinstance(v, dict) and v:
-                    n = f'{cn}{k.capitalize()}'; gen(n, v); fld = f'{k}: {n}'
-                elif isinstance(v, list) and v and isinstance(v[0], dict):
-                    n = f'{cn}{k.capitalize()}Item'; gen(n, v[0]); fld = f'{k}: List[{n}]'
+                container = False
+
+                if isinstance(v, dict):
+                    container = True
+                    if v:
+                        n = f"{cn}{cap(k)}"
+                        gen(n, v)
+                        ft = n
+                    else:
+                        ft = "Dict[str, Any]"
+
                 elif isinstance(v, list):
-                    fld = f'{k}: {"Optional[" if allOptional else ""}List[{t(v[0]) if v else "Any"}]{"]" if allOptional else ""}'
+                    container = True
+                    if not v:
+                        ft = "List[Any]"
+                    else:
+                        sample, depth = v[0], 1
+                        while isinstance(sample, list) and sample:
+                            sample = sample[0]
+                            depth += 1
+
+                        if isinstance(sample, dict):
+                            all_dicts, pending = [], list(v)
+                            while pending:
+                                x = pending.pop()
+                                if isinstance(x, dict):
+                                    all_dicts.append(x)
+                                elif isinstance(x, list):
+                                    pending.extend(x)
+                            n = f"{cn}{cap(k)}Item"
+                            gen(n, all_dicts)
+                            ft = "List[" * depth + n + "]" * depth
+                        else:
+                            prims, pending = set(), list(v)
+                            while pending:
+                                x = pending.pop()
+                                if isinstance(x, list):
+                                    pending.extend(x)
+                                elif x is not None:
+                                    prims.add(guess(x))
+                            elem = prims.pop() if len(prims) == 1 else "Any"
+                            ft = "List[" * depth + elem + "]" * depth
+
+                elif v is None:
+                    container, ft = True, "Any"
                 else:
-                    fld = f'{k}: {"Optional[" if allOptional else ""}{t(v)}{"]" if allOptional else ""}'
-                flds.append(f'    {fld} = Field(None)' if allOptional or isinstance(v, (dict,list)) else f'    {fld} = Field(...)')
-            classes[cn] = [f'class {cn}(BaseModel):'] + flds
+                    ft = guess(v)
+
+                if IDENT_RE.match(k) and k not in KW:
+                    fname, alias = k, ""
+                else:
+                    fname = NONWORD_RE.sub("_", k) or "_"
+                    if fname[0].isdigit():
+                        fname = "_" + fname
+                    elif fname in KW:
+                        fname = fname + "_"
+                    alias = f", alias='{k}'"
+
+                if allOptional or container:
+                    flds.append(f"    {fname}: Optional[{ft}] = Field(None{alias})")
+                else:
+                    flds.append(f"    {fname}: {ft} = Field(...{alias})")
+
+            classes[cn] = [f"class {cn}(BaseModel):"] + (flds or ["    pass"])
             return cn
 
-        root = name.replace('.py', '')
+        root = name[:-3]
+        root = NONWORD_RE.sub("_", root) or "_"
+        if root[0].isdigit() or root in KW:
+            root = "_" + root
         gen(root, js)
 
-        with open(file_path, 'w+', encoding='utf-8') as f:
-            lines = ['# Autogenerated', 'from pydantic import BaseModel, Field', 'from typing import Optional, List, Any', '']
-            for cn, cls in classes.items():
-                lines.extend(cls)
-                if cn != root: lines.append('')
-            f.write('\n'.join(lines))
+        with open(file_path, "w+", encoding="utf-8") as f:
+            out = [
+                "# Autogenerated",
+                "from pydantic import BaseModel, Field",
+                "from typing import Optional, List, Dict, Any",
+                "",
+            ]
+            for cls in classes.values():
+                if cls is not None:
+                    out.extend(cls)
+                    out.append("")
+            f.write("\n".join(out))
 
     def parse_har_to_endpoints(
         self,
@@ -343,7 +445,6 @@ class Helper:
 
             c += 1
 
-            # Добавляем запрос с ID
             if method not in res.url[baseURL][path][query].params:
                 res.url[baseURL][path][query].params[method] = Params(
                     method=method,

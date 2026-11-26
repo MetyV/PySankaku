@@ -9,7 +9,7 @@ class TaggingData(BaseModel):
     tags: list[TagData] | None = Field(None, description="")
 
 class TagData(BaseModel):
-    id: str | int = Field(None, description="")
+    id: str | int
     name: str | None = Field(None, description="")
     name_en: str | None = Field(None, description="")
     name_ja: str | None = Field(None, description="")
